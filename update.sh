@@ -114,7 +114,7 @@ remove_unwanted_packages() {
         "luci-app-passwall" "luci-app-ddns-go" "luci-app-rclone" "luci-app-ssr-plus"
         "luci-app-vssr" "luci-app-daed" "luci-app-dae" "luci-app-alist" "luci-app-homeproxy"
         "luci-app-haproxy-tcp" "luci-app-openclash" "luci-app-mihomo" "luci-app-appfilter"
-        "luci-app-msd_lite"
+        "luci-app-msd_lite" "luci-app-unblockneteasemusic"
     )
     local packages_net=(
         "haproxy" "xray-core" "xray-plugin" "dns2socks" "alist" "hysteria"
@@ -445,7 +445,7 @@ change_cpuusage() {
 
 update_tcping() {
     local tcping_path="$BUILD_DIR/feeds/small8/tcping/Makefile"
-    local url="https://raw.githubusercontent.com/xiaorouji/openwrt-passwall-packages/refs/heads/main/tcping/Makefile"
+    local url="https://raw.githubusercontent.com/Openwrt-Passwall/openwrt-passwall-packages/refs/heads/main/tcping/Makefile"
 
     if [ -d "$(dirname "$tcping_path")" ]; then
         echo "正在更新 tcping Makefile..."
@@ -1115,6 +1115,23 @@ remove_attendedsysupgrade() {
     done
 }
 
+fix_openssl_ktls() {
+    local config_in="$BUILD_DIR/package/libs/openssl/Config.in"
+    if [ -f "$config_in" ]; then
+        echo "正在更新 OpenSSL kTLS 配置..."
+        sed -i 's/select PACKAGE_kmod-tls/depends on PACKAGE_kmod-tls/g' "$config_in"
+        sed -i '/depends on PACKAGE_kmod-tls/a\\tdefault y if PACKAGE_kmod-tls' "$config_in"
+    fi
+}
+
+fix_opkg_check() {
+    local patch_file="$BASE_PATH/patches/001-fix-provides-version-parsing.patch"
+    local opkg_dir="$BUILD_DIR/package/system/opkg"
+    if [ -f "$patch_file" ]; then
+        install -Dm644 "$patch_file" "$opkg_dir/patches/001-fix-provides-version-parsing.patch"
+    fi
+}
+
 main() {
     clone_repo
     clean_up
@@ -1168,10 +1185,12 @@ main() {
     update_adguardhome
     update_script_priority
     update_geoip
-    update_package "runc" "releases" "v1.2.6"
-    update_package "containerd" "releases" "v1.7.27"
-    update_package "docker" "tags" "v28.2.2"
-    update_package "dockerd" "releases" "v28.2.2"
+    fix_openssl_ktls
+    fix_opkg_check
+    #update_package "runc" "releases" "v1.2.6"
+    #update_package "containerd" "releases" "v1.7.27"
+    #update_package "docker" "tags" "v28.2.2"
+    #update_package "dockerd" "releases" "v28.2.2"
     # apply_hash_fixes # 调用哈希修正函数
 }
 
