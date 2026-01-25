@@ -38,7 +38,7 @@ FEEDS_CONF="feeds.conf.default"
 GOLANG_REPO="https://github.com/sbwml/packages_lang_golang"
 GOLANG_BRANCH="25.x"
 THEME_SET="argon"
-LAN_ADDR="192.168.1.1"
+LAN_ADDR="192.168.123.1"
 
 clone_repo() {
     if [[ ! -d $BUILD_DIR ]]; then
@@ -800,6 +800,17 @@ update_geoip() {
                     sed -i "s/$old_SHA256/$new_SHA256/g" "$geodata_path"
                 fi
             fi
+        fi
+    fi
+}
+
+# 新增：修复 docker 包的 PKG_GIT_SHORT_COMMIT 错误值
+fix_docker_commit_hash() {
+    local docker_mk=" $ BUILD_DIR/feeds/packages/utils/docker/Makefile"
+    if [[ -f " $ docker_mk" ]]; then
+        if grep -q "PKG_GIT_SHORT_COMMIT:=ce12230" " $ docker_mk"; then
+            sed -i 's/PKG_GIT_SHORT_COMMIT:=ce12230/PKG_GIT_SHORT_COMMIT:=e6534b4/' " $ docker_mk"
+            echo "[FIX] Corrected docker commit hash from ce12230 to e6534b4."
         fi
     fi
 }
