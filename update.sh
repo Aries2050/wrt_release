@@ -804,17 +804,6 @@ update_geoip() {
     fi
 }
 
-# 新增：修复 docker 包的 PKG_GIT_SHORT_COMMIT 错误值
-fix_docker_commit_hash() {
-    local docker_mk=" $ BUILD_DIR/feeds/packages/utils/docker/Makefile"
-    if [[ -f " $ docker_mk" ]]; then
-        if grep -q "PKG_GIT_SHORT_COMMIT:=ce12230" " $ docker_mk"; then
-            sed -i 's/PKG_GIT_SHORT_COMMIT:=ce12230/PKG_GIT_SHORT_COMMIT:=e6534b4/' " $ docker_mk"
-            echo "[FIX] Corrected docker commit hash from ce12230 to e6534b4."
-        fi
-    fi
-}
-
 update_lucky() {
     local lucky_repo_url="https://github.com/gdy666/luci-app-lucky.git"
     local target_small8_dir="$BUILD_DIR/feeds/small8"
