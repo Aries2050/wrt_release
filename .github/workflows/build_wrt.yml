@@ -55,7 +55,6 @@ jobs:
         uses: actions/setup-go@v6
         with:
            go-version: 'stable'
-         run: go version
 
       - name: Checkout
         uses: actions/checkout@v6.0.2
