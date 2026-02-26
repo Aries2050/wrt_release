@@ -51,6 +51,11 @@ jobs:
           sudo -E apt -yqq clean
           sudo -E systemctl daemon-reload
 
+      - name: Go Setup
+        uses: actions/setup-go@v6
+        with:
+           go-version: 'stable'
+           
       - name: Checkout
         uses: actions/checkout@v6.0.2
 
