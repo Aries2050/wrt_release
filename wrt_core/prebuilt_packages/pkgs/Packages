@@ -1,0 +1,42 @@
+Package: luci-app-qbittorrent
+Version: 23.319.47768~c3def80
+Depends: libc, qbittorrent
+Section: luci
+URL: https://github.com/openwrt/luci
+Architecture: all
+Installed-Size: 122880
+Filename: luci-app-qbittorrent_23.319.47768~c3def80_all.ipk
+Size: 19632
+SHA256sum: 8979d3cb7e3db322221a50244da0fda85b0caa2f57427522de1fad699663ea87
+Description:  LuCI support for qBittorrent
+
+Package: luci-i18n-qbittorrent-zh-cn
+Version: 23.125.53811~62bb9d1
+Depends: libc, luci-app-qbittorrent
+Section: luci
+Architecture: all
+Installed-Size: 20480
+Filename: luci-i18n-qbittorrent-zh-cn_23.125.53811~62bb9d1_all.ipk
+Size: 5434
+SHA256sum: 5da36dbfa8cdd51d258cc1ffbb84e2b3a573a861539d3d8ef887054e1a30f3ac
+Description:  Translation for luci-app-qbittorrent - 简体中文 (Simplified Chinese)
+
+Package: qbittorrent
+Version: 5.1.4-r1
+Depends: libc
+Provides: qBittorrent
+License: GPL-2.0+
+Section: net
+URL: https://www.qbittorrent.org/
+CPE-ID: cpe:/a:qbittorrent:qbittorrent
+Architecture: aarch64_cortex-a53
+Installed-Size: 17991680
+Filename: qbittorrent_5.1.4-r1_aarch64_cortex-a53.ipk
+Size: 8320575
+SHA256sum: aa7bd82a7349b724d6b05dc842ecf6ea68db4dcc8efa00da4dbdf15279660680
+Description:  qBittorrent is a bittorrent client programmed in C++ / Qt that uses
+ libtorrent (sometimes called libtorrent-rasterbar) by Arvid Norberg.
+ It aims to be a good alternative to all other bittorrent clients out
+ there. qBittorrent is fast, stable and provides unicode support as
+ well as many features.
+

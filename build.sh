@@ -464,6 +464,27 @@ mkdir -p "$FIRMWARE_DIR"
 find "$TARGET_DIR" -type f \( -name "*.bin" -o -name "*.manifest" -o -name "*efi.img.gz" -o -name "*.itb" -o -name "*.fip" -o -name "*.ubi" -o -name "*rootfs.tar.gz" \) -exec cp -f {} "$FIRMWARE_DIR/" \;
 \rm -f "$BASE_PATH/../firmware/Packages.manifest" 2>/dev/null
 
+# 自动安装预编译包（如 qBittorrent）到固件的 opkg 仓库。
+PREBUILT_PKG_DIR="$BASE_PATH/prebuilt_packages"
+if [[ -d "$PREBUILT_PKG_DIR/pkgs" ]]; then
+    echo "正在集成预编译包到固件..."
+
+    # 将预编译 IPK 复制到构建输出的 packages 目录，使其在设备 opkg 中可用。
+    TARGET_PKG_DIR=$(find "$TARGET_DIR" -type d -name "packages" | head -1)
+    if [[ -n "$TARGET_PKG_DIR" ]]; then
+        \cp -f "$PREBUILT_PKG_DIR/pkgs/"*.ipk "$TARGET_PKG_DIR/" 2>/dev/null
+        # 将预编译包签名和元数据也复制过去，保持仓库完整性。
+        \cp -f "$PREBUILT_PKG_DIR/pkgs/Packages" "$TARGET_PKG_DIR/" 2>/dev/null || true
+        \cp -f "$PREBUILT_PKG_DIR/pkgs/Packages.gz" "$TARGET_PKG_DIR/" 2>/dev/null || true
+        \cp -f "$PREBUILT_PKG_DIR/pkgs/Packages.sig" "$TARGET_PKG_DIR/" 2>/dev/null || true
+        echo "已集成预编译包到: $TARGET_PKG_DIR"
+    fi
+
+    # 同时复制 IPK 到 firmware 目录，方便直接下载使用。
+    \cp -f "$PREBUILT_PKG_DIR/pkgs/"*.ipk "$FIRMWARE_DIR/" 2>/dev/null || true
+    echo "预编译包已复制到: $FIRMWARE_DIR"
+fi
+
 if [[ -d action_build ]]; then
     make clean
 fi

@@ -238,3 +238,44 @@ fix_rust_compile_error() {
         sed -i 's/download-ci-llvm=true/download-ci-llvm=false/g' "$BUILD_DIR/feeds/packages/lang/rust/Makefile"
     fi
 }
+
+
+update_hdsentinel() {
+    local hds_url="https://www.hdsentinel.com/hdslin/hdsentinel-armv8.zip"
+    local hds_dest="$BUILD_DIR/package/base-files/files/bin/HDSentinel"
+    local tmp_dir="${TMPDIR:-/tmp}/hdsentinel-$$"
+
+    echo "正在下载 HDSentinel..."
+    mkdir -p "$tmp_dir"
+
+    if ! wget_retry -q "$hds_url" -O "$tmp_dir/hdsentinel-armv8.zip"; then
+        echo "错误：下载 HDSentinel 失败" >&2
+        rm -rf "$tmp_dir"
+        exit 1
+    fi
+
+    if ! unzip -q -o "$tmp_dir/hdsentinel-armv8.zip" -d "$tmp_dir"; then
+        echo "错误：解压 HDSentinel 失败" >&2
+        rm -rf "$tmp_dir"
+        exit 1
+    fi
+
+    local extracted
+    extracted=$(find "$tmp_dir" -maxdepth 1 -type f -executable -o -name "HDSentinel" -o -name "hdsentinel" 2>/dev/null | head -1)
+    if [[ -z "$extracted" ]]; then
+        # 尝试查找任何非目录、非 zip 的文件
+        extracted=$(find "$tmp_dir" -maxdepth 1 -type f ! -name "*.zip" | head -1)
+    fi
+
+    if [[ -n "$extracted" ]]; then
+        install -Dm755 "$extracted" "$hds_dest"
+        echo "HDSentinel 已安装到 $hds_dest"
+    else
+        echo "错误：未找到解压后的 HDSentinel 二进制文件" >&2
+        ls -la "$tmp_dir"
+        rm -rf "$tmp_dir"
+        exit 1
+    fi
+
+    rm -rf "$tmp_dir"
+}

@@ -24,7 +24,7 @@ FEEDS_CONF="feeds.conf.default"
 GOLANG_REPO="https://github.com/sbwml/packages_lang_golang"
 GOLANG_BRANCH="26.x"
 THEME_SET="argon"
-LAN_ADDR="192.168.1.1"
+LAN_ADDR="192.168.199.1"
 
 SCRIPT_DIR=$(cd $(dirname $0) && pwd)
 BASE_PATH=${BASE_PATH:-$SCRIPT_DIR}
@@ -42,6 +42,7 @@ source "$SCRIPT_DIR/modules/package_source_updates.sh"
 source "$SCRIPT_DIR/modules/target_fixes.sh"
 source "$SCRIPT_DIR/modules/luci_fixes.sh"
 source "$SCRIPT_DIR/modules/service_fixes.sh"
+source "$SCRIPT_DIR/modules/glibc_compat.sh"
 
 
 # 阶段顺序不可随意调整：feeds install 前后依赖的目录不同。
@@ -101,6 +102,7 @@ stage_pre_install_source_fixes() {
     add_quickfile
     update_lucky
     fix_rust_compile_error
+    update_hdsentinel
     update_smartdns
     update_mwan3_fw4
     update_diskman
@@ -114,6 +116,10 @@ stage_pre_install_source_fixes() {
     fix_easytier_mk
     remove_attendedsysupgrade
     fix_kconfig_recursive_dependency
+
+    setup_glibc_compat
+    install_glibc_run_wrapper
+    install_glibc_init_script
 }
 
 stage_feeds_install() {
@@ -137,6 +143,7 @@ stage_post_install_package_fixes() {
     install_pbr_cmcc
     fix_pbr_ip_forward
     # apply_hash_fixes
+    verify_glibc_compat
 }
 
 main() {
