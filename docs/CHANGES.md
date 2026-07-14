@@ -55,7 +55,9 @@
 
 | 模块 | 说明 |
 |------|------|
-| `wrt_core/modules/glibc_compat.sh` | 在 musl 系统上为 glibc 二进制提供运行环境 |
+| `wrt_core/deconfig/glibc.config` | 系统级 LIBC 切换为 glibc（替代 musl） |
+| `wrt_core/patches/glibc-compat-check.sh` | glibc 兼容性诊断脚本 |
+| `GLIBC_COMPAT=true` | 设备 INI 标记，启用后固件使用 glibc 编译 |
 
 详见 [GLIBC_COMPAT.md](./GLIBC_COMPAT.md)。
 
@@ -90,10 +92,13 @@
 本地独有文件和目录（上游不存在）：
 
 ```
+wrt_core/deconfig/glibc.config
+wrt_core/patches/glibc-compat-check.sh
 wrt_core/prebuilt_packages/
 ├── install.sh
 └── qbittorrent.conf
-wrt_core/modules/glibc_compat.sh
 docs/
-└── CHANGES.md, GLIBC_COMPAT.md, MAINTENANCE.md
+├── CHANGES.md
+├── GLIBC_COMPAT.md
+└── MAINTENANCE.md
 ```

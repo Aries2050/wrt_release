@@ -408,6 +408,13 @@ apply_config() {
         cat "$CONFIG_FRAGMENT_DIR/$fragment.config" >> "$BASE_PATH/../$BUILD_DIR/.config"
     done
 
+    # glibc 兼容层：INI 中标记 GLIBC_COMPAT=true 时启用。
+    # 将系统 libc 从 musl 切换为 glibc，编译的固件可原生运行 glibc 二进制程序。
+    GLIBC_COMPAT=$(read_ini_by_key "GLIBC_COMPAT")
+    if [[ "$GLIBC_COMPAT" == "true" ]]; then
+        echo "启用 glibc 系统编译模式 (CONFIG_LIBC=glibc)..."
+        cat "$BASE_PATH/deconfig/glibc.config" >> "$BASE_PATH/../$BUILD_DIR/.config"
+    fi
 }
 
 # 读取设备元信息，确定上游源码和构建目录。

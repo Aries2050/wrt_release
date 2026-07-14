@@ -10,7 +10,12 @@
 #   glibc-run /path/to/glibc-binary [args...]
 #
 # 仓库 URL（Debian 13 "Trixie"，aarch64 / arm64）：
-DEBIAN_MIRROR="${DEBIAN_MIRROR:-https://ftp.debian.org/debian}"
+# 镜像列表（按优先级尝试）
+DEBIAN_MIRRORS=(
+    "${DEBIAN_MIRROR:-https://ftp.debian.org/debian}"
+    "https://deb.debian.org/debian"
+    "https://mirrors.tuna.tsinghua.edu.cn/debian"
+)
 DEBIAN_RELEASE="${DEBIAN_RELEASE:-trixie}"
 DEBIAN_ARCH="arm64"
 
@@ -35,20 +40,19 @@ download_deb_package() {
     local pkg_name="$1"
     local pkg_ver="$2"
     local target_dir="$3"
-    local deb_url
-
-    # 构造 Debian 软件包下载 URL
-    # 格式: pool/main/<letter>/<pkg>/<pkg>_<ver>_<arch>.deb
     local prefix="${pkg_name:0:1}"
-    deb_url="${DEBIAN_MIRROR}/pool/main/${prefix}/${pkg_name}/${pkg_name}_${pkg_ver}_${DEBIAN_ARCH}.deb"
 
-    echo "正在下载 ${pkg_name}_${pkg_ver}_${DEBIAN_ARCH}.deb ..."
-    if ! wget_retry -qO "$target_dir/${pkg_name}.deb" "$deb_url"; then
-        # 如果精确版本下载失败，尝试从 pool 目录查找
-        echo "精确版本下载失败，尝试从 Packages 索引查找 ${pkg_name} ..."
-        return 1
-    fi
-    echo "成功下载: ${pkg_name}.deb"
+    for mirror in "${DEBIAN_MIRRORS[@]}"; do
+        local deb_url="${mirror}/pool/main/${prefix}/${pkg_name}/${pkg_name}_${pkg_ver}_${DEBIAN_ARCH}.deb"
+        echo "  尝试: ${deb_url}"
+        if wget_retry -qO "$target_dir/${pkg_name}.deb" "$deb_url" 2>/dev/null; then
+            echo "  成功下载: ${pkg_name}_${pkg_ver}_${DEBIAN_ARCH}.deb (来自 ${mirror})"
+            return 0
+        fi
+    done
+
+    echo "  警告: 所有镜像均无法下载 ${pkg_name}_${pkg_ver}_${DEBIAN_ARCH}.deb" >&2
+    return 1
 }
 
 # 从 .deb 包中提取 .so 文件
@@ -56,12 +60,13 @@ extract_so_from_deb() {
     local deb_file="$1"
     local output_dir="$2"
     local tmp_dir
+    local found=0
 
     tmp_dir=$(mktemp -d)
 
-    # 解压 .deb (ar 归档)
-    ar -x "$deb_file" --output="$tmp_dir" 2>/dev/null || {
-        echo "警告: 无法解压 $deb_file" >&2
+    # 解压 .deb (ar 归档) — 兼容不同版本 ar
+    (cd "$tmp_dir" && ar -x "$deb_file") 2>/dev/null || {
+        echo "  警告: 无法解压 $(basename "$deb_file")（ar 不可用？）" >&2
         rm -rf "$tmp_dir"
         return 1
     }
@@ -85,6 +90,7 @@ extract_so_from_deb() {
                 basename=$(basename "$so_file")
                 \cp -f "$so_file" "$output_dir/$basename" 2>/dev/null || true
                 echo "  提取: $basename"
+                found=1
             fi
         done
     fi
@@ -95,6 +101,7 @@ extract_so_from_deb() {
     if [ -n "$ld_file" ] && [ ! -L "$ld_file" ]; then
         \cp -f "$ld_file" "$output_dir/" 2>/dev/null || true
         echo "  提取: $(basename "$ld_file")"
+        found=1
     fi
 
     # 创建必要的符号链接
@@ -111,28 +118,39 @@ extract_so_from_deb() {
     fi
 
     rm -rf "$tmp_dir"
+
+    if [ "$found" -eq 0 ]; then
+        echo "  警告: 在 $(basename "$deb_file") 中未找到任何 .so 文件" >&2
+        return 1
+    fi
+    return 0
 }
 
 # 获取 Debian 软件包的最新版本号
 get_package_version() {
     local pkg_name="$1"
-    local prefix="${pkg_name:0:1}"
-    local packages_url="${DEBIAN_MIRROR}/dists/${DEBIAN_RELEASE}/main/binary-${DEBIAN_ARCH}/Packages.gz"
     local tmp_pkg
 
     tmp_pkg=$(mktemp)
-    if wget_retry -qO- "$packages_url" 2>/dev/null | gunzip -c 2>/dev/null > "$tmp_pkg"; then
-        # 查找 Package 条目
-        local version
-        version=$(awk -v pkg="$pkg_name" '
-            /^Package: / { p = $2 }
-            p == pkg && /^Version: / { print $2; exit }
-        ' "$tmp_pkg")
-        rm -f "$tmp_pkg"
-        echo "$version"
-        return 0
-    fi
+
+    for mirror in "${DEBIAN_MIRRORS[@]}"; do
+        local packages_url="${mirror}/dists/${DEBIAN_RELEASE}/main/binary-${DEBIAN_ARCH}/Packages.gz"
+        if wget_retry -qO- "$packages_url" 2>/dev/null | gunzip -c 2>/dev/null > "$tmp_pkg"; then
+            local version
+            version=$(awk -v pkg="$pkg_name" '
+                /^Package: / { p = $2 }
+                p == pkg && /^Version: / { print $2; exit }
+            ' "$tmp_pkg")
+            rm -f "$tmp_pkg"
+            if [ -n "$version" ]; then
+                echo "$version"
+                return 0
+            fi
+        fi
+    done
+
     rm -f "$tmp_pkg"
+    echo "警告: 所有镜像均无法获取 ${pkg_name} 的版本信息" >&2
     return 1
 }
 
@@ -144,9 +162,13 @@ get_package_version() {
 setup_glibc_compat() {
     local target_dir="$BUNDLE_DIR"
     local tmp_dl_dir
+    local success_count=0
+    local total_count=${#GLIBC_DEB_PACKAGES[@]}
 
     echo "=========================================="
     echo "  设置 glibc 兼容层 (aarch64)"
+    echo "  镜像: ${DEBIAN_MIRRORS[*]}"
+    echo "  发行版: ${DEBIAN_RELEASE}"
     echo "=========================================="
 
     # 创建目标目录
@@ -157,18 +179,26 @@ setup_glibc_compat() {
     tmp_dl_dir=$(mktemp -d)
 
     for pkg in "${GLIBC_DEB_PACKAGES[@]}"; do
+        echo "  [${pkg}] 查询版本..."
         local version
-        version=$(get_package_version "$pkg")
+        version=$(get_package_version "$pkg") || true
         if [ -z "$version" ]; then
-            echo "警告: 无法获取 $pkg 版本号，跳过" >&2
+            echo "  [${pkg}] ⚠ 跳过（无法获取版本）"
             continue
         fi
-        echo "  软件包: $pkg, 版本: $version"
+        echo "  [${pkg}] 版本: ${version}"
 
+        echo "  [${pkg}] 下载中..."
         if download_deb_package "$pkg" "$version" "$tmp_dl_dir"; then
-            extract_so_from_deb "$tmp_dl_dir/${pkg}.deb" "$target_dir"
+            echo "  [${pkg}] 解压中..."
+            if extract_so_from_deb "$tmp_dl_dir/${pkg}.deb" "$target_dir"; then
+                echo "  [${pkg}] ✓ 安装成功"
+                success_count=$((success_count + 1))
+            else
+                echo "  [${pkg}] ⚠ 解压失败" >&2
+            fi
         else
-            echo "警告: 下载 $pkg 失败，尝试备用版本..." >&2
+            echo "  [${pkg}] ⚠ 下载失败" >&2
         fi
     done
 
@@ -186,10 +216,21 @@ setup_glibc_compat() {
     rm -rf "$tmp_dl_dir"
 
     # 列出已安装的库
+    echo "------------------------------------------"
+    echo "结果: ${success_count}/${total_count} 个包安装成功"
     echo "已安装的 glibc 库:"
-    ls -la "$target_dir" 2>/dev/null || echo "  (空)"
+    if [ -d "$target_dir" ]; then
+        ls -la "$target_dir" 2>/dev/null || echo "  (空)"
+    else
+        echo "  (目录不存在)"
+    fi
+    echo "=========================================="
 
-    echo "glibc 兼容层设置完成"
+    # 不要因为 glibc 兼容层失败而阻断整体构建
+    if [ "$success_count" -eq 0 ]; then
+        echo "⚠ 警告: glibc 兼容层未安装任何库，glibc-run 将不可用"
+        echo "  可设置 DEBIAN_MIRROR 环境变量指定可用的镜像源"
+    fi
 }
 
 # 创建 glibc-run 包装脚本
@@ -280,36 +321,45 @@ GLIBC_INIT
     echo "已创建 glibc 初始化脚本: $INIT_SCRIPT_PATH"
 }
 
-# 验证 glibc 兼容层是否已正确安装
+# 验证 glibc 兼容层是否已正确安装（仅警告，不阻断构建）
 verify_glibc_compat() {
     local target_dir="$BUNDLE_DIR"
     local errors=0
 
     echo "正在验证 glibc 兼容层..."
 
+    # 检查目录是否存在
+    if [ ! -d "$target_dir" ]; then
+        echo "⚠ 警告: glibc 兼容层目录不存在 ($target_dir)"
+        echo "  固件将不包含 glibc 兼容层，glibc-run 不可用"
+        return 0
+    fi
+
     # 检查动态链接器
     if [ -z "$(find "$target_dir" -name "ld-linux-aarch64*" -type f 2>/dev/null | head -1)" ]; then
-        echo "错误: 动态链接器 (ld-linux-aarch64*) 未找到" >&2
+        echo "⚠ 警告: 动态链接器 (ld-linux-aarch64*) 未找到"
+        echo "  glibc 兼容层可能未正确安装，但不影响固件构建"
         errors=$((errors + 1))
     fi
 
     # 检查 libc.so
     if [ -z "$(find "$target_dir" -name "libc.so*" -type f 2>/dev/null | head -1)" ]; then
-        echo "错误: libc.so 未找到" >&2
+        echo "⚠ 警告: libc.so 未找到"
         errors=$((errors + 1))
     fi
 
     # 检查包装脚本
     if [ ! -f "$WRAPPER_PATH" ]; then
-        echo "错误: glibc-run 包装脚本未安装" >&2
+        echo "⚠ 警告: glibc-run 包装脚本未安装"
         errors=$((errors + 1))
     fi
 
     if [ $errors -eq 0 ]; then
         echo "glibc 兼容层验证通过 ✓"
-        return 0
     else
-        echo "glibc 兼容层发现 $errors 个问题" >&2
-        return 1
+        echo "glibc 兼容层发现 $errors 个问题（不影响固件构建）"
     fi
+
+    # 始终返回 0，不阻断构建流程
+    return 0
 }

@@ -42,7 +42,6 @@ source "$SCRIPT_DIR/modules/package_source_updates.sh"
 source "$SCRIPT_DIR/modules/target_fixes.sh"
 source "$SCRIPT_DIR/modules/luci_fixes.sh"
 source "$SCRIPT_DIR/modules/service_fixes.sh"
-source "$SCRIPT_DIR/modules/glibc_compat.sh"
 
 
 # 阶段顺序不可随意调整：feeds install 前后依赖的目录不同。
@@ -117,9 +116,6 @@ stage_pre_install_source_fixes() {
     remove_attendedsysupgrade
     fix_kconfig_recursive_dependency
 
-    setup_glibc_compat
-    install_glibc_run_wrapper
-    install_glibc_init_script
 }
 
 stage_feeds_install() {
@@ -143,7 +139,6 @@ stage_post_install_package_fixes() {
     install_pbr_cmcc
     fix_pbr_ip_forward
     # apply_hash_fixes
-    verify_glibc_compat
 }
 
 main() {

@@ -27,7 +27,7 @@ wrt_release/
 │   │   ├── service_fixes.sh          ← 服务包与运行时配置修正
 │   │   ├── docker.sh                 ← Docker 相关配置
 │   │   ├── cups.sh                   ← CUPS 打印服务
-│   │   ├── glibc_compat.sh           ← ⭐ glibc 兼容层（本地定制新增）
+│   │   ├── glibc_compat.sh           ← ❌ 已移除，改用系统级 glibc 切换
 │   │   ├── verify.sh                 ← 自定义 feed 安装路径验证
 │   │   ├── general.sh                ← 兼容入口 → 重定向到 repo.sh
 │   │   └── packages.sh               ← 兼容入口 → 重定向到各子模块
@@ -35,6 +35,7 @@ wrt_release/
 │   │   ├── 990_set_argon_primary     ← 设置 Argon 默认主题
 │   │   ├── 991_custom_settings       ← 自定义系统设置
 │   │   ├── 992_set-wifi-uci.sh       ← WiFi UCI 默认配置
+│   │   ├── glibc-compat-check.sh    ← ⭐ glibc 兼容性诊断脚本
 │   │   ├── tempinfo                  ← 温度信息脚本
 │   │   ├── cpuusage                  ← CPU 使用率脚本
 │   │   ├── hnatusage                 ← 硬件 NAT 状态脚本
@@ -63,7 +64,7 @@ stage_feed_source_cleanup    → remove_unwanted_packages → remove_tweaked_pac
         │
 stage_custom_feed_prepare    → install_custom_feed
         │
-stage_pre_install_source_fixes → 各种源码修正 + glibc_compat
+stage_pre_install_source_fixes → 各种源码修正
         │
 stage_feeds_install          → install_feeds
         │
@@ -108,15 +109,18 @@ git push origin main
 |------|-------------|---------|
 | `compile_base.config` | 上游删除/修改 | 保留本地定制内容，吸收上游新增 |
 | `build_wrt.yml` | 编译目标、步骤差异 | 保留本地编译目标和额外步骤 |
-| `update.sh` | 模块结构变化 | 保留 `glibc_compat.sh` 引用 |
+| `update.sh` | 模块结构变化 | 保留本地定制模块引用 |
 | `patches/` 目录 | 上游重构 | 检查本地补丁是否仍需保留 |
+| `glibc.config` / `glibc-compat-check.sh` | 上游不存在 | 确认文件存在，`build.sh` 中 `GLIBC_COMPAT` 逻辑完好 |
 
 ### 合并后检查清单
 
 - [ ] `lan_addr` 是否仍为 `192.168.199.1`
 - [ ] 编译目标是否正确（仅编译亚瑟）
 - [ ] `prebuilt_packages/` 是否仍然存在
-- [ ] `glibc_compat.sh` 是否仍被引用
+- [ ] `glibc.config` 和 `glibc-compat-check.sh` 是否存在
+- [ ] `build.sh` 中 `GLIBC_COMPAT` 逻辑是否完好
+- [ ] 启用了 `GLIBC_COMPAT` 的设备 INI 是否正确
 - [ ] `docs/` 目录是否完整
 - [ ] CI 工作流是否正常
 
@@ -147,7 +151,8 @@ git push origin main
 ```
 
 已在以下文件中使用此标记：
-- `wrt_core/modules/glibc_compat.sh`
+- `wrt_core/deconfig/glibc.config`
+- `wrt_core/patches/glibc-compat-check.sh`
 - `wrt_core/prebuilt_packages/install.sh`
 - `wrt_core/prebuilt_packages/qbittorrent.conf`
 - `docs/` 目录下所有文件
