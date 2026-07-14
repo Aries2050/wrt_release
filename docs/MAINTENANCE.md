@@ -1,6 +1,6 @@
 # 维护指南
 
-> **最后更新**: 2026-07-14（AI 维护指引章节）
+> **最后更新**: 2026-07-15
 
 ## 仓库结构
 
@@ -27,10 +27,11 @@ wrt_release/
 │   │   ├── service_fixes.sh          ← 服务包与运行时配置修正
 │   │   ├── docker.sh                 ← Docker 相关配置
 │   │   ├── cups.sh                   ← CUPS 打印服务
-│   │   ├── glibc_compat.sh           ← ❌ 已移除，改用系统级 glibc 切换
 │   │   ├── verify.sh                 ← 自定义 feed 安装路径验证
 │   │   ├── general.sh                ← 兼容入口 → 重定向到 repo.sh
-│   │   └── packages.sh               ← 兼容入口 → 重定向到各子模块
+│   │   ├── packages.sh               ← 兼容入口 → 重定向到各子模块
+│   │   └── _deprecated/              ← ⭐ 已废弃模块归档
+│   │       └── glibc_compat.sh       ← ❌ glibc 兼容层（改用系统级切换）
 │   ├── patches/                      ← 补丁和脚本
 │   │   ├── 990_set_argon_primary     ← 设置 Argon 默认主题
 │   │   ├── 991_custom_settings       ← 自定义系统设置
@@ -44,7 +45,9 @@ wrt_release/
 │   │   └── smp_affinity              ← SMP 亲和性配置
 │   └── prebuilt_packages/            ← ⭐ 预编译包（本地定制）
 │       ├── install.sh
-│       └── qbittorrent.conf
+│       ├── qbittorrent.conf
+│       ├── lucky_2.27.2_Linux_arm64_wanji.tar.gz
+│       └── lucky_2.27.2_Linux_x86_64_wanji.tar.gz
 ├── docs/                             ← ⭐ 本文档目录（本地定制）
 │   ├── CHANGES.md                    ← 本地定制更改概览
 │   ├── GLIBC_COMPAT.md               ← glibc 兼容层说明

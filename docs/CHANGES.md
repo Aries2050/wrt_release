@@ -1,6 +1,6 @@
 # 本地定制更改概览
 
-> **最后更新**: 2026-07-14
+> **最后更新**: 2026-07-15
 
 本仓库源自 [ZqinKing/wrt_release](https://github.com/ZqinKing/wrt_release)，在此基础上有以下本地定制。
 
@@ -31,6 +31,7 @@
 |------|------|------|
 | 预编译 IPK 安装脚本 | `wrt_core/prebuilt_packages/install.sh` | 集中管理预编译 IPK 包的安装流程（qBittorrent 5.1.4 / Qt6） |
 | qBittorrent 包定义 | `wrt_core/prebuilt_packages/qbittorrent.conf` | qBittorrent 默认 Web UI 配置 |
+| Lucky 预编译二进制 | `wrt_core/prebuilt_packages/lucky_2.27.2_Linux_*.tar.gz` | Lucky 预编译二进制包，构建时注入到 lucky Makefile |
 
 ### 4. 额外软件包
 
@@ -79,13 +80,26 @@
 
 | 更改 | 文件 | 说明 |
 |------|------|------|
-| 自动下载 HDSentinel 并安装到 `/bin/HDSentinel` | `wrt_core/modules/target_fixes.sh` / `wrt_core/update.sh` | 从 `hdsentinel.com` 下载 armv8 版，解压后安装到 base-files |
+| 自动下载 HDSentinel 并安装到 `/bin/HDSentinel` | `wrt_core/modules/target_fixes.sh` / `wrt_core/update.sh` | 从 `hdsentinel.com` 按架构（armv8/x64）下载对应版本，解压后安装到 base-files |
 
 ### 8. 自动集成预编译包
 
 | 更改 | 文件 | 说明 |
 |------|------|------|
 | 编译后自动复制预编译 IPK 到固件输出 | `build.sh` | 构建完成后将 `prebuilt_packages/pkgs/*.ipk` 复制到 `bin/targets/*/packages/` 及 `firmware/`，使其在设备 opkg 和固件下载目录中可用 |
+
+### 9. 代码质量修复
+
+| 更改 | 文件 | 说明 |
+|------|------|------|
+| 移除废弃模块 `glibc_compat.sh` | `wrt_core/modules/glibc_compat.sh` → `wrt_core/modules/_deprecated/` | 改用系统级 glibc 切换，旧兼容层移至废弃目录 |
+| 修复 `print_usage` 中错误的 `start.sh` 引用 | `build.sh` / `wrt_core/build_container.sh` | `./start.sh` → `./build.sh` |
+| 移除 `update.sh` 中重复的 `set -o errexit` | `wrt_core/update.sh` | 与 `set -e` 语义重复 |
+| `COREMARK_NUMBER_OF_THREADS` 从全局移至各设备 | `wrt_core/deconfig/compile_base.config` + 各设备 `.config` | 全局 `=6` 改为各设备 `=4`（4 核设备），x64 不设置 |
+| 同步 CI 设备列表，移除 N1 | `.github/workflows/release_wrt.yml` / `README.md` | 注释 N1 相关步骤，从设备表中移除 |
+| Lucky 预编译包移入 `prebuilt_packages/` | `wrt_core/patches/` → `wrt_core/prebuilt_packages/` | 保持 `patches/` 目录纯文本补丁 |
+| HDSentinel 支持多架构下载 | `wrt_core/modules/target_fixes.sh` | armv8 和 x64 自动选择对应版本 |
+| `update.sh` 增加 DEV_NAME 参数传递 | `wrt_core/update.sh` / `build.sh` | 向下游模块传递设备名，用于架构检测 |
 
 ## 与上游的差异标识
 
@@ -94,9 +108,12 @@
 ```
 wrt_core/deconfig/glibc.config
 wrt_core/patches/glibc-compat-check.sh
+wrt_core/modules/_deprecated/glibc_compat.sh
 wrt_core/prebuilt_packages/
 ├── install.sh
-└── qbittorrent.conf
+├── qbittorrent.conf
+├── lucky_2.27.2_Linux_arm64_wanji.tar.gz
+└── lucky_2.27.2_Linux_x86_64_wanji.tar.gz
 docs/
 ├── CHANGES.md
 ├── GLIBC_COMPAT.md

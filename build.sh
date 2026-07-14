@@ -47,7 +47,7 @@ collect_supported_devs() {
 
 print_usage() {
     echo "Usage: $0 <device> [debug|container|container_debug|config_preview]"
-    echo "       ./start.sh"
+    echo "       ./build.sh"
 }
 
 print_supported_devs() {
@@ -437,7 +437,7 @@ if [[ -d action_build ]]; then
     BUILD_DIR="action_build"
 fi
 
-"$BASE_PATH/update.sh" "$REPO_URL" "$REPO_BRANCH" "$BUILD_DIR" "$COMMIT_HASH"
+"$BASE_PATH/update.sh" "$REPO_URL" "$REPO_BRANCH" "$BUILD_DIR" "$COMMIT_HASH" "$Dev"
 
 apply_config
 print_config_fragment_summary

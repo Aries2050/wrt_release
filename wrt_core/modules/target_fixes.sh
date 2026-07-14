@@ -241,20 +241,32 @@ fix_rust_compile_error() {
 
 
 update_hdsentinel() {
+    local hds_arch="armv8"
     local hds_url="https://www.hdsentinel.com/hdslin/hdsentinel-armv8.zip"
+    local hds_zip="hdsentinel-armv8.zip"
     local hds_dest="$BUILD_DIR/package/base-files/files/bin/HDSentinel"
     local tmp_dir="${TMPDIR:-/tmp}/hdsentinel-$$"
 
-    echo "正在下载 HDSentinel..."
+    # 检测目标架构，选择正确的 HDSentinel 版本
+    if [[ -n "$DEV_NAME" ]]; then
+        local dev_config="$BASE_PATH/deconfig/$DEV_NAME.config"
+        if [[ -f "$dev_config" ]] && grep -q "CONFIG_TARGET_x86_64=y" "$dev_config" 2>/dev/null; then
+            hds_arch="x64"
+            hds_url="https://www.hdsentinel.com/hdslin/hdsentinel-020c-x64.zip"
+            hds_zip="hdsentinel-020c-x64.zip"
+        fi
+    fi
+
+    echo "正在下载 HDSentinel (${hds_arch})..."
     mkdir -p "$tmp_dir"
 
-    if ! wget_retry -q "$hds_url" -O "$tmp_dir/hdsentinel-armv8.zip"; then
-        echo "错误：下载 HDSentinel 失败" >&2
+    if ! wget_retry -q "$hds_url" -O "$tmp_dir/$hds_zip"; then
+        echo "错误：下载 HDSentinel (${hds_arch}) 失败" >&2
         rm -rf "$tmp_dir"
         exit 1
     fi
 
-    if ! unzip -q -o "$tmp_dir/hdsentinel-armv8.zip" -d "$tmp_dir"; then
+    if ! unzip -q -o "$tmp_dir/$hds_zip" -d "$tmp_dir"; then
         echo "错误：解压 HDSentinel 失败" >&2
         rm -rf "$tmp_dir"
         exit 1
