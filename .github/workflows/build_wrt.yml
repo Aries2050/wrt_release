@@ -88,20 +88,52 @@ jobs:
       - name: Pre Clone
         run: ./wrt_core/pre_clone_action.sh ${{ inputs.model }}
 
+      - name: Load Config Flag
+        run: |
+          if [ -f "./config_flag" ]; then
+            CONFIG_FLAG=$(cat ./config_flag)
+            echo "当前配置指纹: ${CONFIG_FLAG}"
+            # 保存到文件供后续步骤和 hashFiles 使用
+          else
+            echo "Warning: config_flag not found"
+            echo "unknown" > ./config_flag
+          fi
+
+      - name: Detect Config Change and Clear Incompatible Cache
+        run: |
+          if [ -d "./action_build/staging_dir" ]; then
+            STORED_FLAG=""
+            if [ -f "./action_build/.config_flag" ]; then
+              STORED_FLAG=$(cat ./action_build/.config_flag)
+            fi
+            CURRENT_FLAG="$(cat ./config_flag 2>/dev/null || echo 'unknown')"
+            if [ "${STORED_FLAG}" != "${CURRENT_FLAG}" ]; then
+              echo "配置已变更: '${STORED_FLAG:-<无>}' -> '${CURRENT_FLAG}'"
+              echo "清除不兼容的 staging_dir..."
+              rm -rf ./action_build/staging_dir
+            else
+              echo "配置未变，保留缓存。"
+            fi
+          else
+            echo "未找到 staging_dir，跳过配置检查。"
+          fi
+
       - name: Cache Dependencies
         uses: actions/cache@v6.1.0
         with:
           path: |
             ./action_build/.ccache
             ./action_build/staging_dir
-          key: ${{ matrix.os }}-${{ inputs.model }}-${{ hashFiles('**/repo_flag') }}-${{ env.ADD_CONFIG_FRAGMENTS_KEY }}-${{ env.REMOVE_CONFIG_FRAGMENTS_KEY }}-${{ env.BUILD_DATE }}
+          key: ${{ matrix.os }}-${{ inputs.model }}-${{ hashFiles('**/repo_flag') }}-${{ hashFiles('**/config_flag') }}-${{ env.ADD_CONFIG_FRAGMENTS_KEY }}-${{ env.REMOVE_CONFIG_FRAGMENTS_KEY }}-${{ env.BUILD_DATE }}
           restore-keys: |
-            ${{ matrix.os }}-${{ inputs.model }}-${{ hashFiles('**/repo_flag') }}-${{ env.ADD_CONFIG_FRAGMENTS_KEY }}-${{ env.REMOVE_CONFIG_FRAGMENTS_KEY }}-
+            ${{ matrix.os }}-${{ inputs.model }}-${{ hashFiles('**/repo_flag') }}-${{ hashFiles('**/config_flag') }}-
             ${{ matrix.os }}-${{ inputs.model }}-${{ hashFiles('**/repo_flag') }}-
 
       - name: Refresh the cache
         run: |
           if [ -d "./action_build/staging_dir" ]; then
+            # 保存当前配置指纹到构建目录，供下次对比
+            cp -f ./config_flag ./action_build/.config_flag
             find "./action_build/staging_dir" -type d -name "stamp" -not -path "*target*" | while read -r dir; do
                 find "$dir" -type f -exec touch {} +
             done

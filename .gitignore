@@ -18,6 +18,9 @@ deconfig/*.bak
 test.sh
 domain_rule.json
 01-install.sh
+repo_flag
+config_flag
+action_build/
 reality_server.json
 xray-client.json
 xray-server.json

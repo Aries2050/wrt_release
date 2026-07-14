@@ -41,6 +41,12 @@ BUILD_DIR="$BASE_PATH/../action_build"
 echo $REPO_URL $REPO_BRANCH
 # Write flag one level up from wrt_core (repo root usually)
 echo "$REPO_URL/$REPO_BRANCH" >"$BASE_PATH/../repo_flag"
+
+# 写入配置指纹，用于缓存 key 检测配置变更
+GLIBC_COMPAT=$(read_ini_by_key "GLIBC_COMPAT")
+CONFIG_FRAGMENTS=$(read_ini_by_key "CONFIG_FRAGMENTS")
+echo "${Dev}:GLIBC_COMPAT=${GLIBC_COMPAT}:FRAGMENTS=${CONFIG_FRAGMENTS}" >"$BASE_PATH/../config_flag"
+
 git_retry clone --depth 1 -b "$REPO_BRANCH" "$REPO_URL" "$BUILD_DIR"
 
 # GitHub Action 移除国内下载源
