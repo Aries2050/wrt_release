@@ -93,11 +93,21 @@ jobs:
           if [ -f "./config_flag" ]; then
             CONFIG_FLAG=$(cat ./config_flag)
             echo "当前配置指纹: ${CONFIG_FLAG}"
-            # 保存到文件供后续步骤和 hashFiles 使用
           else
             echo "Warning: config_flag not found"
             echo "unknown" > ./config_flag
           fi
+
+      - name: Cache Dependencies
+        uses: actions/cache@v6.1.0
+        with:
+          path: |
+            ./action_build/.ccache
+            ./action_build/staging_dir
+          key: ${{ matrix.os }}-${{ inputs.model }}-${{ hashFiles('**/repo_flag') }}-${{ hashFiles('**/config_flag') }}-${{ env.ADD_CONFIG_FRAGMENTS_KEY }}-${{ env.REMOVE_CONFIG_FRAGMENTS_KEY }}-${{ env.BUILD_DATE }}
+          restore-keys: |
+            ${{ matrix.os }}-${{ inputs.model }}-${{ hashFiles('**/repo_flag') }}-${{ hashFiles('**/config_flag') }}-
+            ${{ matrix.os }}-${{ inputs.model }}-${{ hashFiles('**/repo_flag') }}-
 
       - name: Detect Config Change and Clear Incompatible Cache
         run: |
@@ -115,24 +125,12 @@ jobs:
               echo "配置未变，保留缓存。"
             fi
           else
-            echo "未找到 staging_dir，跳过配置检查。"
+            echo "未找到 staging_dir（未命中缓存），跳过配置检查。"
           fi
-
-      - name: Cache Dependencies
-        uses: actions/cache@v6.1.0
-        with:
-          path: |
-            ./action_build/.ccache
-            ./action_build/staging_dir
-          key: ${{ matrix.os }}-${{ inputs.model }}-${{ hashFiles('**/repo_flag') }}-${{ hashFiles('**/config_flag') }}-${{ env.ADD_CONFIG_FRAGMENTS_KEY }}-${{ env.REMOVE_CONFIG_FRAGMENTS_KEY }}-${{ env.BUILD_DATE }}
-          restore-keys: |
-            ${{ matrix.os }}-${{ inputs.model }}-${{ hashFiles('**/repo_flag') }}-${{ hashFiles('**/config_flag') }}-
-            ${{ matrix.os }}-${{ inputs.model }}-${{ hashFiles('**/repo_flag') }}-
 
       - name: Refresh the cache
         run: |
           if [ -d "./action_build/staging_dir" ]; then
-            # 保存当前配置指纹到构建目录，供下次对比
             cp -f ./config_flag ./action_build/.config_flag
             find "./action_build/staging_dir" -type d -name "stamp" -not -path "*target*" | while read -r dir; do
                 find "$dir" -type f -exec touch {} +
