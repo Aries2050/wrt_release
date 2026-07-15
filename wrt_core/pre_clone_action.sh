@@ -25,7 +25,7 @@ fi
 
 read_ini_by_key() {
     local key=$1
-    awk -F"=" -v key="$key" '$1 == key {print $2}' "$INI_FILE"
+    awk -F"=" -v key="$key" '$1 == key {gsub(/\r/,"",$2); print $2}' "$INI_FILE"
 }
 
 REPO_URL=$(read_ini_by_key "REPO_URL")

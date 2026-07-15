@@ -197,7 +197,7 @@ validate_build_mode
 
 read_ini_by_key() {
     local key=$1
-    awk -F"=" -v key="$key" '$1 == key {print $2}' "$INI_FILE"
+    awk -F"=" -v key="$key" '$1 == key {gsub(/\r/,"",$2); print $2}' "$INI_FILE"
 }
 
 CONFIG_FRAGMENT_DIR="$BASE_PATH/deconfig/fragments"

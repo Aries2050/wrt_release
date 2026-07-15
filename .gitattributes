@@ -1,0 +1,9 @@
+# 强制 LF 行尾（防止 Windows CRLF 破坏 bash awk 解析）
+*.ini text eol=lf
+*.config text eol=lf
+*.sh text eol=lf
+*.md text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.json text eol=lf
+*.conf text eol=lf
