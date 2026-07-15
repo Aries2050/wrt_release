@@ -246,6 +246,7 @@ update_hdsentinel() {
     local hds_zip="hdsentinel-armv8.zip"
     local hds_dest="$BUILD_DIR/package/base-files/files/bin/HDSentinel"
     local tmp_dir="${TMPDIR:-/tmp}/hdsentinel-$$"
+    local local_zip="$BASE_PATH/prebuilt_packages/hdsentinel"
 
     # 检测目标架构，选择正确的 HDSentinel 版本
     if [[ -n "$DEV_NAME" ]]; then
@@ -261,15 +262,21 @@ update_hdsentinel() {
     mkdir -p "$tmp_dir"
 
     if ! wget_retry -q "$hds_url" -O "$tmp_dir/$hds_zip"; then
-        echo "错误：下载 HDSentinel (${hds_arch}) 失败" >&2
-        rm -rf "$tmp_dir"
-        exit 1
+        echo "警告：下载 HDSentinel (${hds_arch}) 失败，尝试本地副本..." >&2
+        if [[ -f "$local_zip/$hds_zip" ]]; then
+            echo "使用本地副本: $local_zip/$hds_zip"
+            \cp -f "$local_zip/$hds_zip" "$tmp_dir/$hds_zip"
+        else
+            echo "警告：本地副本也不存在 ($local_zip/$hds_zip)，跳过 HDSentinel 集成" >&2
+            rm -rf "$tmp_dir"
+            return 0
+        fi
     fi
 
     if ! unzip -q -o "$tmp_dir/$hds_zip" -d "$tmp_dir"; then
-        echo "错误：解压 HDSentinel 失败" >&2
+        echo "警告：解压 HDSentinel 失败，跳过 HDSentinel 集成" >&2
         rm -rf "$tmp_dir"
-        exit 1
+        return 0
     fi
 
     local extracted
@@ -283,10 +290,10 @@ update_hdsentinel() {
         install -Dm755 "$extracted" "$hds_dest"
         echo "HDSentinel 已安装到 $hds_dest"
     else
-        echo "错误：未找到解压后的 HDSentinel 二进制文件" >&2
+        echo "警告：未找到解压后的 HDSentinel 二进制文件，跳过 HDSentinel 集成" >&2
         ls -la "$tmp_dir"
         rm -rf "$tmp_dir"
-        exit 1
+        return 0
     fi
 
     rm -rf "$tmp_dir"
