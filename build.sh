@@ -462,8 +462,7 @@ if [[ "$GLIBC_COMPAT" == "true" ]]; then
         sed -i '/^# CONFIG_USE_MUSL/d' ".config"
         echo "CONFIG_USE_GLIBC=y" >> ".config"
         echo "# CONFIG_USE_MUSL is not set" >> ".config"
-        # 使用 olddefconfig（仅补全新选项，不覆盖已有设置）
-        make olddefconfig
+        # 跳过第二次 defconfig/oldconfig，强制保留手动设置的 LIBC 值
     fi
 fi
 
@@ -481,6 +480,13 @@ fi
 TARGET_DIR="$BASE_PATH/../$BUILD_DIR/bin/targets"
 if [[ -d $TARGET_DIR ]]; then
     find "$TARGET_DIR" -type f \( -name "*.bin" -o -name "*.manifest" -o -name "*efi.img.gz" -o -name "*.itb" -o -name "*.fip" -o -name "*.ubi" -o -name "*rootfs.tar.gz" \) -exec rm -f {} +
+fi
+
+# 验证 glibc 配置是否已正确写入
+GLIBC_COMPAT=$(read_ini_by_key "GLIBC_COMPAT")
+if [[ "$GLIBC_COMPAT" == "true" ]]; then
+    FINAL_LIBC=$(grep "^CONFIG_LIBC=" ".config" 2>/dev/null | cut -d'=' -f2 | tr -d '"')
+    echo "最终 LIBC 配置: $FINAL_LIBC"
 fi
 
 make download -j$(($(nproc) * 2))
