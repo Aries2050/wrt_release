@@ -1,5 +1,5 @@
 name: Build WRT
-run-name: Build - ${{ inputs.model }}
+run-name: Build - ${{ inputs.model }}${{ inputs.build_mode != '' && format(' ({0})', inputs.build_mode) || '' }}
 
 on:
   workflow_dispatch:
@@ -12,6 +12,17 @@ on:
         options:
           - jdcloud_ipq60xx_immwrt
           - link_nn6000v2_immwrt
+      build_mode:
+        required: false
+        description: Build mode (empty=full, debug, container, container_debug, config_preview)
+        type: choice
+        default: ""
+        options:
+          - ""
+          - debug
+          - container
+          - container_debug
+          - config_preview
       add_fragments:
         required: false
         description: Add config fragments, comma separated
@@ -153,7 +164,7 @@ jobs:
         env:
           ADD_CONFIG_FRAGMENTS: ${{ inputs.add_fragments }}
           REMOVE_CONFIG_FRAGMENTS: ${{ inputs.remove_fragments }}
-        run: ./build.sh ${{ inputs.model }}
+        run: ./build.sh ${{ inputs.model }} ${{ inputs.build_mode }}
 
       - name: Delete Old Cache
         run: |
