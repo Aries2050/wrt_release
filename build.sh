@@ -444,17 +444,16 @@ print_config_fragment_summary
 remove_uhttpd_dependency
 
 cd "$BASE_PATH/../$BUILD_DIR"
-# 先用 defconfig 补全默认配置
-make defconfig
 
-# glibc 兼容层：INI 中标记 GLIBC_COMPAT=true 时，强制覆盖 LIBC 配置
-# 注意：make defconfig 可能因上游 kconfig choice 默认值将 LIBC 重置为 musl，
-# 这里在 defconfig 完成后强制修正，然后使用 olddefconfig（不覆盖已有选项）补全。
+# glibc 兼容层：在 defconfig 前强制写入 LIBC 配置
 GLIBC_COMPAT=$(read_ini_by_key "GLIBC_COMPAT")
 if [[ "$GLIBC_COMPAT" == "true" ]]; then
+    # 检查并修正 .config 中的 LIBC 配置
+    # make defconfig 会因上游 kconfig choice 默认值将 LIBC 重置为 musl
+    # 通过 sed 直接写入所有 LIBC 相关选项，然后运行 defconfig
     CURRENT_LIBC=$(grep "^CONFIG_LIBC=" ".config" 2>/dev/null | cut -d'=' -f2 | tr -d '"')
     if [[ "$CURRENT_LIBC" != "glibc" ]]; then
-        echo "警告：make defconfig 将 CONFIG_LIBC 重置为 '$CURRENT_LIBC'，正在强制修正..."
+        echo "强制写入 glibc 配置到 .config..."
         sed -i 's/^CONFIG_LIBC=.*/CONFIG_LIBC="glibc"/' ".config"
         sed -i '/^CONFIG_USE_GLIBC/d' ".config"
         sed -i '/^# CONFIG_USE_GLIBC/d' ".config"
@@ -462,8 +461,14 @@ if [[ "$GLIBC_COMPAT" == "true" ]]; then
         sed -i '/^# CONFIG_USE_MUSL/d' ".config"
         echo "CONFIG_USE_GLIBC=y" >> ".config"
         echo "# CONFIG_USE_MUSL is not set" >> ".config"
-        # 跳过第二次 defconfig/oldconfig，强制保留手动设置的 LIBC 值
     fi
+fi
+
+make defconfig
+
+if [[ "$GLIBC_COMPAT" == "true" ]]; then
+    CURRENT_LIBC=$(grep "^CONFIG_LIBC=" ".config" 2>/dev/null | cut -d'=' -f2 | tr -d '"')
+    echo "defconfig 后 LIBC = $CURRENT_LIBC"
 fi
 
 if grep -qE "^CONFIG_TARGET_x86_64=y" "$CONFIG_FILE"; then
