@@ -85,8 +85,7 @@ update_smartdns() {
 
     install -Dm644 "$BASE_PATH/patches/100-smartdns-optimize.patch" "$SMARTDNS_DIR/patches/100-smartdns-optimize.patch"
     sed -i '/define Build\/Compile\/smartdns-ui/,/endef/s/CC=\$(TARGET_CC)/CC="\$(TARGET_CC_NOCACHE)"/' "$SMARTDNS_DIR/Makefile"
-    # 修复 PKG_MIRROR_HASH，确保源码下载通过校验
-    sed -i 's/PKG_MIRROR_HASH:=5ef82ea81d5f627f52171e3b487331ecdd270554555cbff3d291590e19f4658d/PKG_MIRROR_HASH:=fd7bfb126ba15764d89a3a57efbea67602105a7bf394f81b7b5dd81693ddc5cb/' "$SMARTDNS_DIR/Makefile"
+    # PKG_MIRROR_HASH 保持上游 git archive 的 hash（5ef82e...），不做替换
 
     echo "正在更新 luci-app-smartdns..."
     rm -rf "$LUCI_APP_SMARTDNS_DIR"

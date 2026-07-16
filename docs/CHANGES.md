@@ -113,6 +113,7 @@
 | 删除测试脚本 | `wrt_core/modules/glibc_compat.sh` 中移除的测试代码 | 清理构建调试遗留 |
 | 移动设备端安装脚本到 `scripts/` | `.install_glibc_compat.sh` → `scripts/install_glibc_compat.sh` | 与构建模块分离，统一管理运行时脚本 |
 | HDSentinel 设为全局命令和环境变量 | `wrt_core/modules/target_fixes.sh` | 创建 `/usr/bin/hdsentinel` 包装脚本（自动调用 `glibc-run`）及 `/etc/profile.d/hdsentinel.sh` 设置 `HDSENTINEL` 环境变量 |
+| 回退 smartdns PKG_MIRROR_HASH 至 git archive 原始值 | `wrt_core/modules/package_source_updates.sh` | 移除错误的 sed 替换，`PKG_SOURCE_PROTO:=git` 应用 `5ef82e...` 而非 `fd7bfb...`，修复 CI 构建失败 |
 
 ## 与上游的差异标识
 
