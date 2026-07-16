@@ -1,6 +1,6 @@
 # 维护指南
 
-> **最后更新**: 2026-07-15
+> **最后更新**: 2026-07-17
 
 ## 仓库结构
 
@@ -47,6 +47,8 @@ wrt_release/
 │       ├── qbittorrent.conf
 │       ├── lucky_2.27.2_Linux_arm64_wanji.tar.gz
 │       └── lucky_2.27.2_Linux_x86_64_wanji.tar.gz
+├── scripts/                          ← ⭐ 设备端运行时脚本
+│   └── install_glibc_compat.sh       ← glibc 运行时安装脚本（设备上直接执行）
 ├── docs/                             ← ⭐ 本文档目录（本地定制）
 │   ├── CHANGES.md                    ← 本地定制更改概览
 │   ├── GLIBC_COMPAT.md               ← glibc 兼容层说明
@@ -124,6 +126,8 @@ git push origin main
 - [ ] `glibc-compat-check.sh` 是否存在
 - [ ] `modules/glibc_compat.sh` 是否在 `update.sh` 中正确引用
 - [ ] `update_hdsentinel()` 输出路径是否为 `BUILD_DIR/files/bin/`
+- [ ] `hdsentinel` 包装脚本是否在 `BUILD_DIR/files/usr/bin/hdsentinel`
+- [ ] `HDSENTINEL` 环境变量是否在 `BUILD_DIR/files/etc/profile.d/hdsentinel.sh`
 - [ ] 启用了 `GLIBC_COMPAT` 的设备 INI 是否正确
 - [ ] `docs/` 目录是否完整
 - [ ] CI 工作流是否正常

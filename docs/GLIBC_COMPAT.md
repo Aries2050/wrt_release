@@ -15,6 +15,13 @@
 3. 创建 `glibc-run` 包装脚本，通过 `ld-linux-aarch64.so.1` 加载 glibc 二进制
 4. `BUILD_DIR/files/` 内容自动合并到固件根文件系统
 
+### 实现细节
+
+- **路径/配置延迟求值**：全局变量（如 `DEBIAN_MIRRORS`、`GLIBC_DIR`）改为 `_glibc_*()` 辅助函数内求值，避免 `source` 加载时变量未定义
+- **Packages.gz 解析**：通过 `get_package_filename()` 从 Debian Packages.gz 获取包的 `Filename` 字段，而非按二进制名首字母猜测路径，解决 `libc6`→`glibc` 源码名不同导致的下载失败
+- **白名单提取**：`extract_so_from_deb()` 采用 case 白名单模式，仅保留核心运行时库（`libc.so.*`、`libm.so.*`、`libpthread.so.*` 等），跳过非必需的 .so 文件
+- **进程替代**：使用 `< <(find ... -print0)` 替代 `while read | pipe`，避免管道导致子 shell 中变量作用域丢失
+
 ### 运行时
 
 glibc 链接的二进制通过 `glibc-run` 包装脚本运行：
@@ -84,14 +91,16 @@ sh wrt_core/patches/glibc-compat-check.sh /tmp/HDSentinel
 
 ## 文件清单
 
-| 文件 | 作用 |
-|------|------|
-| `wrt_core/modules/glibc_compat.sh` | 核心实现：下载、解压、安装 glibc 运行时库 |
-| `wrt_core/modules/target_fixes.sh` | 下载 HDSentinel 到 `BUILD_DIR/files/bin/` |
-| `wrt_core/patches/glibc-compat-check.sh` | 运行时诊断脚本 |
-| `wrt_core/prebuilt_packages/install.sh` | 部署 HDSentinel 和检查兼容性 |
-| `wrt_core/compilecfg/<device>.ini` | 设备配置，`GLIBC_COMPAT=true` 触发 |
-| `wrt_core/prebuilt_packages/hdsentinel/*.zip` | 离线回退包（网络不可用时使用） |
+| 文件 | 作用 | 关键函数 |
+|------|------|----------|
+| `wrt_core/modules/glibc_compat.sh` | 核心实现：下载、解压、安装 glibc 运行时库 | `setup_glibc_compat()` — 入口；`get_package_version()` — 查询版本；`get_package_filename()` — 从 Packages.gz 解析包路径；`download_deb_package()` — 下载 .deb；`extract_so_from_deb()` — 白名单提取 .so |
+| `wrt_core/modules/target_fixes.sh` | 下载 HDSentinel 到 `BUILD_DIR/files/bin/` | — |
+| `wrt_core/patches/glibc-compat-check.sh` | 运行时诊断脚本 | — |
+| `wrt_core/prebuilt_packages/install.sh` | 部署 HDSentinel 和检查兼容性 | — |
+| `wrt_core/compilecfg/<device>.ini` | 设备配置，`GLIBC_COMPAT=true` 触发 | — |
+| `wrt_core/prebuilt_packages/hdsentinel/*.zip` | 离线回退包（网络不可用时使用） | — |
+
+> **路径辅助函数**：`_glibc_mirrors()`、`_glibc_release()`、`_glibc_arch()`、`_glibc_dir()`、`_glibc_bundle()`、`_glibc_wrapper()`、`_glibc_init_scr()` 用于延迟求值路径和配置，避免模块 source 时全局变量未定义。
 
 ## 注意事项
 

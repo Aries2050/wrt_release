@@ -105,6 +105,14 @@
 | Lucky 预编译包移入 `prebuilt_packages/` | `wrt_core/patches/` → `wrt_core/prebuilt_packages/` | 保持 `patches/` 目录纯文本补丁 |
 | HDSentinel 支持多架构下载 | `wrt_core/modules/target_fixes.sh` | armv8 和 x64 自动选择对应版本 |
 | `update.sh` 增加 DEV_NAME 参数传递 | `wrt_core/update.sh` / `build.sh` | 向下游模块传递设备名，用于架构检测 |
+| 新增 `get_package_filename()` 从 Packages.gz 解析正确包路径 | `wrt_core/modules/glibc_compat.sh` | 解决 libc6→glibc 源码名不同导致的下载路径错误 |
+| 白名单模式提取 glibc 库，仅保留核心运行时库 | `wrt_core/modules/glibc_compat.sh` | `extract_so_from_deb()` 改为 case 白名单，跳过非必需 .so 文件 |
+| 路径/配置改为函数内延迟求值 | `wrt_core/modules/glibc_compat.sh` | 全局变量 `DEBIAN_MIRRORS`、`GLIBC_DIR` 等改为 `_glibc_*()` 辅助函数，避免 source 时变量未定义 |
+| 修复 `while read \| pipe` 导致 `found` 变量作用域丢失 | `wrt_core/modules/glibc_compat.sh` | `extract_so_from_deb()` 中改用进程替代 `< <(find ...)` 替代管道 |
+| 修复 `ld-linux-aarch64.so.1` 符号链接自引用问题 | `wrt_core/modules/glibc_compat.sh` | 防止 `ld-linux-aarch64.so.1 → ld-linux-aarch64.so.1` 自身链接 |
+| 删除测试脚本 | `wrt_core/modules/glibc_compat.sh` 中移除的测试代码 | 清理构建调试遗留 |
+| 移动设备端安装脚本到 `scripts/` | `.install_glibc_compat.sh` → `scripts/install_glibc_compat.sh` | 与构建模块分离，统一管理运行时脚本 |
+| HDSentinel 设为全局命令和环境变量 | `wrt_core/modules/target_fixes.sh` | 创建 `/usr/bin/hdsentinel` 包装脚本（自动调用 `glibc-run`）及 `/etc/profile.d/hdsentinel.sh` 设置 `HDSENTINEL` 环境变量 |
 
 ## 与上游的差异标识
 

@@ -289,6 +289,27 @@ update_hdsentinel() {
     if [[ -n "$extracted" ]]; then
         install -Dm755 "$extracted" "$hds_dest"
         echo "HDSentinel 已安装到 $hds_dest"
+
+        # ⭐ 创建全局包装脚本：输入 hdsentinel 即可直接调用（内部自动通过 glibc-run 加载）
+        local wrapper_path="$BUILD_DIR/files/usr/bin/hdsentinel"
+        mkdir -p "$(dirname "$wrapper_path")"
+        cat > "$wrapper_path" << 'HDSEOF'
+#!/bin/sh
+# ⭐ HDSentinel 全局包装脚本：自动通过 glibc-run 加载 glibc 二进制
+exec glibc-run /bin/HDSentinel "$@"
+HDSEOF
+        chmod +x "$wrapper_path"
+        echo "全局包装脚本已创建: $wrapper_path（终端输入 hdsentinel 即可使用）"
+
+        # ⭐ 设置 HDSENTINEL 全局环境变量，供脚本检测
+        local profile_d="$BUILD_DIR/files/etc/profile.d"
+        mkdir -p "$profile_d"
+        cat > "$profile_d/hdsentinel.sh" << 'ENVEOF'
+# ⭐ HDSentinel 环境变量
+export HDSENTINEL="/bin/HDSentinel"
+ENVEOF
+        chmod +x "$profile_d/hdsentinel.sh"
+        echo "环境变量已设置: HDSENTINEL=/bin/HDSentinel"
     else
         echo "警告：未找到解压后的 HDSentinel 二进制文件，跳过 HDSentinel 集成" >&2
         ls -la "$tmp_dir"
