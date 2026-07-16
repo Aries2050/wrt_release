@@ -244,7 +244,7 @@ update_hdsentinel() {
     local hds_arch="armv8"
     local hds_url="https://www.hdsentinel.com/hdslin/hdsentinel-armv8.zip"
     local hds_zip="hdsentinel-armv8.zip"
-    local hds_dest="$BUILD_DIR/package/base-files/files/bin/HDSentinel"
+    local hds_dest="$BUILD_DIR/files/bin/HDSentinel"
     local tmp_dir="${TMPDIR:-/tmp}/hdsentinel-$$"
     local local_zip="$BASE_PATH/prebuilt_packages/hdsentinel"
 

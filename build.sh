@@ -408,13 +408,10 @@ apply_config() {
         cat "$CONFIG_FRAGMENT_DIR/$fragment.config" >> "$BASE_PATH/../$BUILD_DIR/.config"
     done
 
-    # glibc 兼容层：INI 中标记 GLIBC_COMPAT=true 时启用。
-    # 将系统 libc 从 musl 切换为 glibc，编译的固件可原生运行 glibc 二进制程序。
-    GLIBC_COMPAT=$(read_ini_by_key "GLIBC_COMPAT")
-    if [[ "$GLIBC_COMPAT" == "true" ]]; then
-        echo "启用 glibc 系统编译模式 (CONFIG_LIBC=glibc)..."
-        cat "$BASE_PATH/deconfig/glibc.config" >> "$BASE_PATH/../$BUILD_DIR/.config"
-    fi
+    # glibc 兼容层：INI 中标记 GLIBC_COMPAT=true 时，在 update.sh 阶段
+    # 通过 glibc_compat.sh 注入 Debian glibc 运行时库到 BUILD_DIR/files/，
+    # 固件仍使用 musl 编译，运行时通过 glibc-run 包装脚本加载 glibc 二进制。
+    # 不再修改 CONFIG_LIBC（系统级切换已被运行时兼容方案替代）。
 }
 
 # 读取设备元信息，确定上游源码和构建目录。
@@ -444,32 +441,7 @@ print_config_fragment_summary
 remove_uhttpd_dependency
 
 cd "$BASE_PATH/../$BUILD_DIR"
-
-# glibc 兼容层：在 defconfig 前强制写入 LIBC 配置
-GLIBC_COMPAT=$(read_ini_by_key "GLIBC_COMPAT")
-if [[ "$GLIBC_COMPAT" == "true" ]]; then
-    # 检查并修正 .config 中的 LIBC 配置
-    # make defconfig 会因上游 kconfig choice 默认值将 LIBC 重置为 musl
-    # 通过 sed 直接写入所有 LIBC 相关选项，然后运行 defconfig
-    CURRENT_LIBC=$(grep "^CONFIG_LIBC=" ".config" 2>/dev/null | cut -d'=' -f2 | tr -d '"')
-    if [[ "$CURRENT_LIBC" != "glibc" ]]; then
-        echo "强制写入 glibc 配置到 .config..."
-        sed -i 's/^CONFIG_LIBC=.*/CONFIG_LIBC="glibc"/' ".config"
-        sed -i '/^CONFIG_USE_GLIBC/d' ".config"
-        sed -i '/^# CONFIG_USE_GLIBC/d' ".config"
-        sed -i '/^CONFIG_USE_MUSL/d' ".config"
-        sed -i '/^# CONFIG_USE_MUSL/d' ".config"
-        echo "CONFIG_USE_GLIBC=y" >> ".config"
-        echo "# CONFIG_USE_MUSL is not set" >> ".config"
-    fi
-fi
-
 make defconfig
-
-if [[ "$GLIBC_COMPAT" == "true" ]]; then
-    CURRENT_LIBC=$(grep "^CONFIG_LIBC=" ".config" 2>/dev/null | cut -d'=' -f2 | tr -d '"')
-    echo "defconfig 后 LIBC = $CURRENT_LIBC"
-fi
 
 if grep -qE "^CONFIG_TARGET_x86_64=y" "$CONFIG_FILE"; then
     DISTFEEDS_PATH="$BASE_PATH/../$BUILD_DIR/package/emortal/default-settings/files/99-distfeeds.conf"
@@ -485,13 +457,6 @@ fi
 TARGET_DIR="$BASE_PATH/../$BUILD_DIR/bin/targets"
 if [[ -d $TARGET_DIR ]]; then
     find "$TARGET_DIR" -type f \( -name "*.bin" -o -name "*.manifest" -o -name "*efi.img.gz" -o -name "*.itb" -o -name "*.fip" -o -name "*.ubi" -o -name "*rootfs.tar.gz" \) -exec rm -f {} +
-fi
-
-# 验证 glibc 配置是否已正确写入
-GLIBC_COMPAT=$(read_ini_by_key "GLIBC_COMPAT")
-if [[ "$GLIBC_COMPAT" == "true" ]]; then
-    FINAL_LIBC=$(grep "^CONFIG_LIBC=" ".config" 2>/dev/null | cut -d'=' -f2 | tr -d '"')
-    echo "最终 LIBC 配置: $FINAL_LIBC"
 fi
 
 make download -j$(($(nproc) * 2))
