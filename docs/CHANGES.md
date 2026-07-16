@@ -1,6 +1,6 @@
 # 本地定制更改概览
 
-> **最后更新**: 2026-07-15
+> **最后更新**: 2026-07-17
 
 本仓库源自 [ZqinKing/wrt_release](https://github.com/ZqinKing/wrt_release)，在此基础上有以下本地定制。
 
@@ -52,13 +52,16 @@
 | `openvpn-openssl` + `luci-app-openvpn-server`（开启 DCO / FRAGMENT / LZ4） | OpenVPN 服务端 |
 | `tailscale` + `luci-app-tailscale` | Tailscale 虚拟组网（从 custom_feed 拉取） |
 
-### 5. glibc 兼容层（新增）
+### 5. glibc 兼容层
 
-| 模块 | 说明 |
-|------|------|
-| `wrt_core/deconfig/glibc.config` | 系统级 LIBC 切换为 glibc（替代 musl） |
-| `wrt_core/patches/glibc-compat-check.sh` | glibc 兼容性诊断脚本 |
-| `GLIBC_COMPAT=true` | 设备 INI 标记，启用后固件使用 glibc 编译 |
+| 模块 | 说明 | 状态 |
+|------|------|------|
+| `wrt_core/modules/glibc_compat.sh` | 运行时 glibc 兼容层：从 Debian 下载 glibc 库注入固件 | ✅ 当前方案 |
+| `wrt_core/patches/glibc-compat-check.sh` | glibc 兼容性诊断脚本 | ✅ 保留 |
+| `wrt_core/deconfig/glibc.config` | ~~系统级 LIBC 切换为 glibc（已废弃）~~ | ❌ 已删除 |
+| `GLIBC_COMPAT=true` | 设备 INI 标记，启用运行时 glibc 兼容层 | ✅ 当前方案 |
+
+**历史**：最初采用系统级 LIBC 切换（`CONFIG_LIBC="glibc"`），但上游 kconfig choice 强制重置为 musl，`make` 内部也会重新运行 defconfig 覆盖手动修改。2026-07-17 改为运行时兼容方案——固件使用 musl 编译，通过 `glibc-run` 包装脚本加载 glibc 二进制。
 
 详见 [GLIBC_COMPAT.md](./GLIBC_COMPAT.md)。
 
@@ -80,7 +83,8 @@
 
 | 更改 | 文件 | 说明 |
 |------|------|------|
-| 自动下载 HDSentinel 并安装到 `/bin/HDSentinel` | `wrt_core/modules/target_fixes.sh` / `wrt_core/update.sh` | 从 `hdsentinel.com` 按架构（armv8/x64）下载对应版本，解压后安装到 base-files |
+| 自动下载 HDSentinel 并注入固件 | `wrt_core/modules/target_fixes.sh` | 从 `hdsentinel.com` 按架构下载，解压后通过 `BUILD_DIR/files/bin/` 注入根文件系统（不经过 IPK 打包，避免依赖检查） |
+| 本地回退包 | `wrt_core/prebuilt_packages/hdsentinel/*.zip` | 下载失败时使用仓库内本地副本 |
 
 ### 8. 自动集成预编译包
 
@@ -92,7 +96,8 @@
 
 | 更改 | 文件 | 说明 |
 |------|------|------|
-| 移除废弃模块 `glibc_compat.sh` | `wrt_core/modules/glibc_compat.sh` → `wrt_core/modules/_deprecated/` | 改用系统级 glibc 切换，旧兼容层移至废弃目录 |
+| 运行时 glibc 兼容层替代系统级切换 | `wrt_core/modules/glibc_compat.sh`（从 `_deprecated/` 恢复） | 不再修改 `CONFIG_LIBC`，通过 `glibc-run` 包装脚本加载 glibc 二进制 |
+| 删除废弃文件 | `wrt_core/deconfig/glibc.config`、`wrt_core/modules/_deprecated/` | 系统级 LIBC 切换相关文件已清理 |
 | 修复 `print_usage` 中错误的 `start.sh` 引用 | `build.sh` / `wrt_core/build_container.sh` | `./start.sh` → `./build.sh` |
 | 移除 `update.sh` 中重复的 `set -o errexit` | `wrt_core/update.sh` | 与 `set -e` 语义重复 |
 | `COREMARK_NUMBER_OF_THREADS` 从全局移至各设备 | `wrt_core/deconfig/compile_base.config` + 各设备 `.config` | 全局 `=6` 改为各设备 `=4`（4 核设备），x64 不设置 |

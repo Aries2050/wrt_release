@@ -30,8 +30,7 @@ wrt_release/
 │   │   ├── verify.sh                 ← 自定义 feed 安装路径验证
 │   │   ├── general.sh                ← 兼容入口 → 重定向到 repo.sh
 │   │   ├── packages.sh               ← 兼容入口 → 重定向到各子模块
-│   │   └── _deprecated/              ← ⭐ 已废弃模块归档
-│   │       └── glibc_compat.sh       ← ❌ glibc 兼容层（改用系统级切换）
+│   │   ├── glibc_compat.sh           ← ⭐ glibc 运行时兼容层
 │   ├── patches/                      ← 补丁和脚本
 │   │   ├── 990_set_argon_primary     ← 设置 Argon 默认主题
 │   │   ├── 991_custom_settings       ← 自定义系统设置
@@ -114,15 +113,17 @@ git push origin main
 | `build_wrt.yml` | 编译目标、步骤差异 | 保留本地编译目标和额外步骤 |
 | `update.sh` | 模块结构变化 | 保留本地定制模块引用 |
 | `patches/` 目录 | 上游重构 | 检查本地补丁是否仍需保留 |
-| `glibc.config` / `glibc-compat-check.sh` | 上游不存在 | 确认文件存在，`build.sh` 中 `GLIBC_COMPAT` 逻辑完好 |
+| `glibc-compat-check.sh` | 上游不存在 | 运行诊断脚本，确认文件存在 |
+| `modules/glibc_compat.sh` | 上游不存在 | 运行时 glibc 兼容层，确认 `update.sh` 中引用完好 |
 
 ### 合并后检查清单
 
 - [ ] `lan_addr` 是否仍为 `192.168.199.1`
 - [ ] 编译目标是否正确（仅编译亚瑟）
 - [ ] `prebuilt_packages/` 是否仍然存在
-- [ ] `glibc.config` 和 `glibc-compat-check.sh` 是否存在
-- [ ] `build.sh` 中 `GLIBC_COMPAT` 逻辑是否完好
+- [ ] `glibc-compat-check.sh` 是否存在
+- [ ] `modules/glibc_compat.sh` 是否在 `update.sh` 中正确引用
+- [ ] `update_hdsentinel()` 输出路径是否为 `BUILD_DIR/files/bin/`
 - [ ] 启用了 `GLIBC_COMPAT` 的设备 INI 是否正确
 - [ ] `docs/` 目录是否完整
 - [ ] CI 工作流是否正常
