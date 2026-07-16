@@ -446,6 +446,24 @@ remove_uhttpd_dependency
 cd "$BASE_PATH/../$BUILD_DIR"
 make defconfig
 
+# 确保 glibc 配置在 make defconfig 后仍然生效（防止 kconfig 依赖解析覆盖）
+GLIBC_COMPAT=$(read_ini_by_key "GLIBC_COMPAT")
+if [[ "$GLIBC_COMPAT" == "true" ]]; then
+    CURRENT_LIBC=$(grep "^CONFIG_LIBC=" ".config" 2>/dev/null | cut -d'=' -f2 | tr -d '"')
+    if [[ "$CURRENT_LIBC" != "glibc" ]]; then
+        echo "警告：make defconfig 将 CONFIG_LIBC 重置为 '$CURRENT_LIBC'，正在重新应用 glibc 设置..."
+        sed -i 's/^CONFIG_LIBC=.*/CONFIG_LIBC="glibc"/' ".config"
+        sed -i '/^CONFIG_USE_GLIBC/d' ".config"
+        sed -i '/^# CONFIG_USE_GLIBC/d' ".config"
+        sed -i '/^CONFIG_USE_MUSL/d' ".config"
+        sed -i '/^# CONFIG_USE_MUSL/d' ".config"
+        echo "CONFIG_USE_GLIBC=y" >> ".config"
+        echo "# CONFIG_USE_MUSL is not set" >> ".config"
+        # 重新运行 defconfig 使配置一致
+        make defconfig
+    fi
+fi
+
 if grep -qE "^CONFIG_TARGET_x86_64=y" "$CONFIG_FILE"; then
     DISTFEEDS_PATH="$BASE_PATH/../$BUILD_DIR/package/emortal/default-settings/files/99-distfeeds.conf"
     if [ -d "${DISTFEEDS_PATH%/*}" ] && [ -f "$DISTFEEDS_PATH" ]; then
