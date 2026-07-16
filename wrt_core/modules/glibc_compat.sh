@@ -10,19 +10,6 @@
 #   glibc-run /path/to/glibc-binary [args...]
 #
 # 仓库 URL（Debian 13 "Trixie"，aarch64 / arm64）：
-# 镜像列表（按优先级尝试）
-DEBIAN_MIRRORS=(
-    "${DEBIAN_MIRROR:-https://ftp.debian.org/debian}"
-    "https://deb.debian.org/debian"
-    "https://mirrors.tuna.tsinghua.edu.cn/debian"
-)
-DEBIAN_RELEASE="${DEBIAN_RELEASE:-trixie}"
-DEBIAN_ARCH="arm64"
-
-GLIBC_DIR="lib/glibc-aarch64"
-BUNDLE_DIR="$BUILD_DIR/files/$GLIBC_DIR"
-WRAPPER_PATH="$BUILD_DIR/files/usr/bin/glibc-run"
-INIT_SCRIPT_PATH="$BUILD_DIR/files/etc/init.d/glibc-compat"
 
 # 需要下载的 Debian 软件包列表
 GLIBC_DEB_PACKAGES=(
@@ -30,6 +17,25 @@ GLIBC_DEB_PACKAGES=(
     "libgcc-s1"
     "libstdc++6"
 )
+
+# ---------------------------------------------------------------
+#  路径/配置辅助函数（在函数体内求值，避免 source 时变量未定义）
+# ---------------------------------------------------------------
+_glibc_mirrors() {
+    local mirrors=(
+        "${DEBIAN_MIRROR:-https://ftp.debian.org/debian}"
+        "https://deb.debian.org/debian"
+        "https://mirrors.tuna.tsinghua.edu.cn/debian"
+    )
+    echo "${mirrors[@]}"
+}
+
+_glibc_release()  { echo "${DEBIAN_RELEASE:-trixie}"; }
+_glibc_arch()     { echo "${DEBIAN_ARCH:-arm64}"; }
+_glibc_dir()      { echo "lib/glibc-aarch64"; }
+_glibc_bundle()   { echo "${BUILD_DIR:?BUILD_DIR 未设置}/files/$(_glibc_dir)"; }
+_glibc_wrapper()  { echo "${BUILD_DIR:?BUILD_DIR 未设置}/files/usr/bin/glibc-run"; }
+_glibc_init_scr() { echo "${BUILD_DIR:?BUILD_DIR 未设置}/files/etc/init.d/glibc-compat"; }
 
 # ---------------------------------------------------------------
 #  辅助函数
@@ -40,18 +46,31 @@ download_deb_package() {
     local pkg_name="$1"
     local pkg_ver="$2"
     local target_dir="$3"
-    local prefix="${pkg_name:0:1}"
+    local filename
+    local arch
 
-    for mirror in "${DEBIAN_MIRRORS[@]}"; do
-        local deb_url="${mirror}/pool/main/${prefix}/${pkg_name}/${pkg_name}_${pkg_ver}_${DEBIAN_ARCH}.deb"
+    arch=$(_glibc_arch)
+
+    # 从 Packages.gz 获取 Filename 字段（处理二进制名与源码名不同的情况，如 libc6→glibc）
+    filename=$(get_package_filename "$pkg_name" "$pkg_ver") || true
+    if [ -z "$filename" ]; then
+        # 回退：按二进制名猜测路径
+        local prefix="${pkg_name:0:1}"
+        filename="pool/main/${prefix}/${pkg_name}/${pkg_name}_${pkg_ver}_${arch}.deb"
+    fi
+
+    local -a mirrors
+    mirrors=( $(_glibc_mirrors) )
+    for mirror in "${mirrors[@]}"; do
+        local deb_url="${mirror}/${filename}"
         echo "  尝试: ${deb_url}"
         if wget_retry -qO "$target_dir/${pkg_name}.deb" "$deb_url" 2>/dev/null; then
-            echo "  成功下载: ${pkg_name}_${pkg_ver}_${DEBIAN_ARCH}.deb (来自 ${mirror})"
+            echo "  成功下载: $(basename "$filename") (来自 ${mirror})"
             return 0
         fi
     done
 
-    echo "  警告: 所有镜像均无法下载 ${pkg_name}_${pkg_ver}_${DEBIAN_ARCH}.deb" >&2
+    echo "  警告: 所有镜像均无法下载 ${filename}" >&2
     return 1
 }
 
@@ -79,43 +98,44 @@ extract_so_from_deb() {
         fi
     done
 
-    # 查找并复制 .so 文件
-    local so_files
-    so_files=$(find "$tmp_dir" -name "*.so*" -type f 2>/dev/null || true)
-    if [ -n "$so_files" ]; then
-        echo "$so_files" | while read -r so_file; do
-            # 只复制实际的 .so 库文件（跳过链接）
-            if [ ! -L "$so_file" ]; then
-                local basename
-                basename=$(basename "$so_file")
-                \cp -f "$so_file" "$output_dir/$basename" 2>/dev/null || true
-                echo "  提取: $basename"
-                found=1
-            fi
-        done
-    fi
-
-    # 提取动态链接器 ld-linux-aarch64.so.1
-    local ld_file
-    ld_file=$(find "$tmp_dir" -name "ld-linux-aarch64*" -type f 2>/dev/null | head -1)
-    if [ -n "$ld_file" ] && [ ! -L "$ld_file" ]; then
-        \cp -f "$ld_file" "$output_dir/" 2>/dev/null || true
-        echo "  提取: $(basename "$ld_file")"
+    # 查找并复制 .so 文件（使用进程替代避免 subshell 的变量作用域问题）
+    while IFS= read -r -d '' so_file; do
+        local basename
+        basename=$(basename "$so_file")
+        # 只保留标准的 glibc 运行时库
+        case "$basename" in
+            libc.so.*|libm.so.*|libpthread.so.*|librt.so.*|libdl.so.*)
+                ;;  # 保留
+            libutil.so.*|libresolv.so.*|libnss_*.so.*|libnsl.so.*)
+                ;;  # 保留
+            libanl.so.*|libBrokenLocale.so.*|libthread_db.so.*)
+                ;;  # 保留
+            libgcc_s.so.*|libstdc++.so.*)
+                ;;  # 保留
+            libc_malloc_debug.so.*|libmemusage.so|libpcprofile.so)
+                ;;  # 保留（调试用）
+            libmvec.so.*)
+                ;;  # 保留
+            ld-linux-aarch64*)
+                ;;  # 保留（动态链接器）
+            *)
+                continue ;;  # 跳过所有其他文件
+        esac
+        \cp -f "$so_file" "$output_dir/$basename" 2>/dev/null || true
+        echo "  提取: $basename"
         found=1
-    fi
+    done < <(find "$tmp_dir" -name "*.so*" -type f -print0 2>/dev/null || true)
 
     # 创建必要的符号链接
-    if [ -d "$tmp_dir/lib" ]; then
-        find "$tmp_dir/lib" -maxdepth 1 -name "*.so*" -type l 2>/dev/null | while read -r link; do
-            local link_target
-            link_target=$(readlink "$link" 2>/dev/null || true)
-            local link_name
-            link_name=$(basename "$link")
-            if [ -n "$link_target" ] && [ -f "$output_dir/$link_target" ]; then
-                ln -sf "$link_target" "$output_dir/$link_name" 2>/dev/null || true
-            fi
-        done
-    fi
+    while IFS= read -r -d '' link; do
+        local link_target
+        link_target=$(readlink "$link" 2>/dev/null || true)
+        local link_name
+        link_name=$(basename "$link")
+        if [ -n "$link_target" ] && [ -f "$output_dir/$link_target" ]; then
+            ln -sf "$link_target" "$output_dir/$link_name" 2>/dev/null || true
+        fi
+    done < <(find "$tmp_dir" -name "*.so*" -type l -print0 2>/dev/null || true)
 
     rm -rf "$tmp_dir"
 
@@ -130,11 +150,16 @@ extract_so_from_deb() {
 get_package_version() {
     local pkg_name="$1"
     local tmp_pkg
+    local release arch
+    local -a mirrors
 
+    release=$(_glibc_release)
+    arch=$(_glibc_arch)
+    mirrors=( $(_glibc_mirrors) )
     tmp_pkg=$(mktemp)
 
-    for mirror in "${DEBIAN_MIRRORS[@]}"; do
-        local packages_url="${mirror}/dists/${DEBIAN_RELEASE}/main/binary-${DEBIAN_ARCH}/Packages.gz"
+    for mirror in "${mirrors[@]}"; do
+        local packages_url="${mirror}/dists/${release}/main/binary-${arch}/Packages.gz"
         if wget_retry -qO- "$packages_url" 2>/dev/null | gunzip -c 2>/dev/null > "$tmp_pkg"; then
             local version
             version=$(awk -v pkg="$pkg_name" '
@@ -154,27 +179,67 @@ get_package_version() {
     return 1
 }
 
+# 从 Packages.gz 获取指定包的 Filename 字段（处理二进制名≠源码名的情况）
+get_package_filename() {
+    local pkg_name="$1"
+    local pkg_ver="$2"
+    local tmp_pkg
+    local release arch
+    local -a mirrors
+
+    release=$(_glibc_release)
+    arch=$(_glibc_arch)
+    mirrors=( $(_glibc_mirrors) )
+    tmp_pkg=$(mktemp)
+
+    for mirror in "${mirrors[@]}"; do
+        local packages_url="${mirror}/dists/${release}/main/binary-${arch}/Packages.gz"
+        if wget_retry -qO- "$packages_url" 2>/dev/null | gunzip -c 2>/dev/null > "$tmp_pkg"; then
+            local filename
+            filename=$(awk -v pkg="$pkg_name" -v ver="$pkg_ver" '
+                /^Package: / { p = $2 }
+                p == pkg && /^Version: / { v = $2 }
+                p == pkg && v == ver && /^Filename: / { print $2; exit }
+            ' "$tmp_pkg")
+            rm -f "$tmp_pkg"
+            if [ -n "$filename" ]; then
+                echo "$filename"
+                return 0
+            fi
+        fi
+    done
+
+    rm -f "$tmp_pkg"
+    return 1
+}
+
 # ---------------------------------------------------------------
 #  主要功能函数
 # ---------------------------------------------------------------
 
 # 下载并安装 glibc 兼容库到固件
 setup_glibc_compat() {
-    local target_dir="$BUNDLE_DIR"
+    local target_dir
     local tmp_dl_dir
     local success_count=0
     local total_count=${#GLIBC_DEB_PACKAGES[@]}
+    local -a mirrors
+    local release
+
+    target_dir=$(_glibc_bundle)
+    mirrors=( $(_glibc_mirrors) )
+    release=$(_glibc_release)
 
     echo "=========================================="
     echo "  设置 glibc 兼容层 (aarch64)"
-    echo "  镜像: ${DEBIAN_MIRRORS[*]}"
-    echo "  发行版: ${DEBIAN_RELEASE}"
+    echo "  镜像: ${mirrors[*]}"
+    echo "  发行版: ${release}"
     echo "=========================================="
 
     # 创建目标目录
     mkdir -p "$target_dir"
-    mkdir -p "$(dirname "$WRAPPER_PATH")"
-    mkdir -p "$(dirname "$INIT_SCRIPT_PATH")"
+    mkdir -p "$(dirname "$(_glibc_wrapper)")"
+    mkdir -p "$(dirname "$(_glibc_init_scr)")"
 
     tmp_dl_dir=$(mktemp -d)
 
@@ -202,14 +267,26 @@ setup_glibc_compat() {
         fi
     done
 
-    # 创建动态链接器符号链接
-    local ld_file
-    ld_file=$(find "$target_dir" -name "ld-linux-aarch64*" -type f 2>/dev/null | head -1)
-    if [ -n "$ld_file" ]; then
+    # 确保 ld-linux-aarch64.so.1 是有效的符号链接
+    local ld_real
+    ld_real=$(find "$target_dir" -name "ld-linux-aarch64*" ! -name "*.so.1" -type f 2>/dev/null | head -1)
+    if [ -n "$ld_real" ]; then
         local ld_basename
-        ld_basename=$(basename "$ld_file")
-        ln -sf "$ld_basename" "$target_dir/ld-linux-aarch64.so.1" 2>/dev/null || true
+        ld_basename=$(basename "$ld_real")
+        if [ "$ld_basename" != "ld-linux-aarch64.so.1" ]; then
+            ln -sf "$ld_basename" "$target_dir/ld-linux-aarch64.so.1" 2>/dev/null || true
+        fi
         echo "动态链接器: $ld_basename"
+    elif [ ! -f "$target_dir/ld-linux-aarch64.so.1" ]; then
+        # 如果 ld-linux-aarch64.so.1 也不存在，从 libc6 中找
+        local any_ld
+        any_ld=$(find "$target_dir" -name "ld-linux-aarch64*" 2>/dev/null | head -1)
+        if [ -n "$any_ld" ] && [ ! -L "$any_ld" ]; then
+            local any_base
+            any_base=$(basename "$any_ld")
+            ln -sf "$any_base" "$target_dir/ld-linux-aarch64.so.1" 2>/dev/null || true
+            echo "动态链接器: $any_base"
+        fi
     fi
 
     # 清理下载缓存
@@ -235,9 +312,11 @@ setup_glibc_compat() {
 
 # 创建 glibc-run 包装脚本
 install_glibc_run_wrapper() {
-    mkdir -p "$(dirname "$WRAPPER_PATH")"
+    local wrapper_path
+    wrapper_path=$(_glibc_wrapper)
+    mkdir -p "$(dirname "$wrapper_path")"
 
-    cat <<'GLIBC_WRAPPER' > "$WRAPPER_PATH"
+    cat <<'GLIBC_WRAPPER' > "$wrapper_path"
 #!/bin/sh
 # glibc-run — 使用捆绑的 glibc 加载器运行 glibc 动态链接的二进制文件
 #
@@ -280,15 +359,17 @@ export LD_LIBRARY_PATH="$GLIBC_DIR${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 exec "$LOADER" "$BINARY" "$@"
 GLIBC_WRAPPER
 
-    chmod +x "$WRAPPER_PATH"
-    echo "已创建 glibc-run 包装脚本: $WRAPPER_PATH"
+    chmod +x "$wrapper_path"
+    echo "已创建 glibc-run 包装脚本: $wrapper_path"
 }
 
 # 创建 glibc 兼容层初始化脚本（用于系统启动时验证）
 install_glibc_init_script() {
-    mkdir -p "$(dirname "$INIT_SCRIPT_PATH")"
+    local init_script_path
+    init_script_path=$(_glibc_init_scr)
+    mkdir -p "$(dirname "$init_script_path")"
 
-    cat <<'GLIBC_INIT' > "$INIT_SCRIPT_PATH"
+    cat <<'GLIBC_INIT' > "$init_script_path"
 #!/bin/sh /etc/rc.common
 # glibc 兼容层初始化
 # 在系统启动时验证 glibc 环境是否就绪
@@ -317,14 +398,16 @@ stop() {
 }
 GLIBC_INIT
 
-    chmod +x "$INIT_SCRIPT_PATH"
-    echo "已创建 glibc 初始化脚本: $INIT_SCRIPT_PATH"
+    chmod +x "$init_script_path"
+    echo "已创建 glibc 初始化脚本: $init_script_path"
 }
 
 # 验证 glibc 兼容层是否已正确安装（仅警告，不阻断构建）
 verify_glibc_compat() {
-    local target_dir="$BUNDLE_DIR"
+    local target_dir
     local errors=0
+
+    target_dir=$(_glibc_bundle)
 
     echo "正在验证 glibc 兼容层..."
 
@@ -335,8 +418,8 @@ verify_glibc_compat() {
         return 0
     fi
 
-    # 检查动态链接器
-    if [ -z "$(find "$target_dir" -name "ld-linux-aarch64*" -type f 2>/dev/null | head -1)" ]; then
+    # 检查动态链接器（同时检查文件和符号链接）
+    if [ -z "$(find "$target_dir" -name "ld-linux-aarch64*" \( -type f -o -type l \) 2>/dev/null | head -1)" ]; then
         echo "⚠ 警告: 动态链接器 (ld-linux-aarch64*) 未找到"
         echo "  glibc 兼容层可能未正确安装，但不影响固件构建"
         errors=$((errors + 1))
@@ -349,7 +432,7 @@ verify_glibc_compat() {
     fi
 
     # 检查包装脚本
-    if [ ! -f "$WRAPPER_PATH" ]; then
+    if [ ! -f "$(_glibc_wrapper)" ]; then
         echo "⚠ 警告: glibc-run 包装脚本未安装"
         errors=$((errors + 1))
     fi
