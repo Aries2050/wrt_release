@@ -22,7 +22,7 @@ wrt_release/
 │   │   ├── custom_feed.sh            ← 自定义 feed 软件包管理
 │   │   ├── feed_source_fixes.sh      ← feed 源清理与替换
 │   │   ├── package_source_updates.sh ← 软件包源码替换与补齐
-│   │   ├── target_fixes.sh           ← 目标平台、内核、基础系统修正
+│   │   ├── target_fixes.sh           ← 目标平台、内核、基础系统修正（含 fix_nn6000_led_label）
 │   │   ├── luci_fixes.sh             ← Luci 界面修正
 │   │   ├── service_fixes.sh          ← 服务包与运行时配置修正
 │   │   ├── docker.sh                 ← Docker 相关配置

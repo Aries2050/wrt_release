@@ -93,6 +93,7 @@ stage_pre_install_source_fixes() {
     update_default_lan_addr
     remove_something_nss_kmod
     update_affinity_script
+    fix_nn6000_led_label
     update_ath11k_fw
     # fix_mkpkg_format_invalid
     change_cpuusage

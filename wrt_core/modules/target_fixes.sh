@@ -101,6 +101,68 @@ update_affinity_script() {
 }
 
 
+fix_nn6000_led_label() {
+    # 修正 NN6000 DTS 节点名称与标签，使其对应物理 LED 实际颜色。
+    #
+    # 实测物理映射:
+    #   GPIO 50 → 绿灯, GPIO 70 → 红灯, GPIO 69 → 黄灯
+    # DTS 原命名:
+    #   status-red   (GPIO 50, label="red:status")   → 实际是绿灯
+    #   status-green (GPIO 70, label="green:status") → 实际是红灯
+    #   status-blue  (GPIO 69, label="blue:status")  → 实际是黄灯
+    #
+    # 修复: 重命名节点和标签以匹配实际颜色:
+    #   status-red   → status-green,   label "red:status"   → "green:status"
+    #   status-green → status-red,     label "green:status" → "red:status"
+    #   status-blue  → status-yellow,  label "blue:status"  → "yellow:status"
+    local dts_dir="$BUILD_DIR/target/linux/qualcommax/files-6.18/arch/arm64/boot/dts/qcom"
+    local dts_file
+
+    if [ ! -d "$dts_dir" ]; then
+        dts_dir=$(find "$BUILD_DIR/target/linux/qualcommax" -path "*/boot/dts/qcom" -type d 2>/dev/null | head -1)
+    fi
+
+    if [ -z "$dts_dir" ] || [ ! -d "$dts_dir" ]; then
+        echo "警告: 未找到 Qualcommax DTS 目录，跳过 LED 标签修正" >&2
+        return
+    fi
+
+    dts_file=$(grep -rl "status-red" "$dts_dir" 2>/dev/null | head -1)
+    if [ -z "$dts_file" ]; then
+        echo "警告: 未找到包含 status-red 的 DTS 文件，跳过 LED 标签修正" >&2
+        return
+    fi
+
+    echo "发现 NN6000 DTS 文件: $dts_file"
+
+    # 1. status-red ↔ status-green (交换节点名和标签)
+    # 暂存 status-red 内容, 原地改为 status-green
+    sed -i '/status-red {/,/};/{
+        /label/s/red:status/green:status/
+    }' "$dts_file"
+    sed -i 's/status-red {/status-green {/' "$dts_file"
+    sed -i '/status-green\/name/s/status-red/status-green/' "$dts_file"
+
+    # 暂存 status-green 内容, 原地改为 status-red
+    sed -i '/status-green {/,/};/{
+        /label/s/green:status/red:status/
+    }' "$dts_file"
+    sed -i 's/status-green {/RENAMED_NODE_PLACEHOLDER {/; s/status-green {/status-red {/' "$dts_file"
+    sed -i 's/RENAMED_NODE_PLACEHOLDER/status-green/'
+    sed -i '/status-red\/name/s/status-green/status-red/' "$dts_file"
+
+    # 2. status-blue → status-yellow
+    sed -i '/status-blue {/,/};/{
+        /label/s/blue:status/yellow:status/
+    }' "$dts_file"
+    sed -i 's/status-blue {/status-yellow {/' "$dts_file"
+    sed -i '/status-yellow\/name/s/status-blue/status-yellow/' "$dts_file"
+
+    echo "已重命名 NN6000 LED 节点: status-red↔status-green, status-blue→status-yellow"
+    echo "  label: red:status→green:status, green:status→red:status, blue:status→yellow:status"
+}
+
+
 fix_hash_value() {
     local makefile_path="$1"
     local old_hash="$2"
@@ -351,17 +413,38 @@ install_prebuilt_ipks() {
         local tmp_dir
         tmp_dir=$(mktemp -d)
 
-        # 解压 .ipk (ar 归档)，优先 7zz，兜底 7z/ar
+        # 解压 .ipk — 标准格式为 ar 归档，但部分 IPK 为 gzip 包裹的 tar 归档
+        # 策略：优先 7zz/7z 直接提取；若未得到 debian-binary 则尝试管道二次提取
+        local extracted=0
         if command -v 7zz &>/dev/null; then
             (cd "$tmp_dir" && 7zz x "$ipk" -y -bso0 -bsp0) 2>/dev/null
+            extracted=1
         elif command -v 7z &>/dev/null; then
             (cd "$tmp_dir" && 7z x "$ipk" -y -bso0 -bsp0) 2>/dev/null
+            extracted=1
         elif command -v ar &>/dev/null; then
             (cd "$tmp_dir" && ar -x "$ipk") 2>/dev/null
+            extracted=1
         else
             echo "  警告: 无法解压 ${name}（7zz/7z/ar 均不可用）" >&2
             rm -rf "$tmp_dir"
             continue
+        fi
+
+        # 若直接解压未产生 debian-binary，说明可能是 gzip+tarball 格式
+        # 此时 7zz/7z 只解了 gzip 层，还需提取内层 tar
+        if [ ! -f "$tmp_dir/debian-binary" ] && [ "$extracted" -eq 1 ]; then
+            local tar_file
+            tar_file=$(find "$tmp_dir" -maxdepth 1 -type f | head -1)
+            if [[ -n "$tar_file" ]]; then
+                # 通过管道传递内层 tar 给 7zz/7z 以 -ttar 模式解压
+                if command -v 7zz &>/dev/null; then
+                    7zz x "$tar_file" -y -bso0 -bsp0 -o"$tmp_dir" 2>/dev/null
+                elif command -v 7z &>/dev/null; then
+                    7z x "$tar_file" -y -bso0 -bsp0 -o"$tmp_dir" 2>/dev/null
+                fi
+                rm -f "$tar_file" 2>/dev/null
+            fi
         fi
 
         # 验证解压是否成功

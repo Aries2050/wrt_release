@@ -128,7 +128,7 @@ https://github.com/kenzok8/small-package.git
 
 ## 8. 项目结构说明
 
-- `build.sh`：主编译入口，负责设备选择、模式选择、配置组合、容器构建和固件收集。构建完成后自动将预编译 IPK（如 qBittorrent）集成到固件输出。
+- `build.sh`：主编译入口，负责设备选择、模式选择、配置组合、容器构建和固件收集。预编译 IPK（如 qBittorrent）在编译阶段通过 `install_prebuilt_ipks()` 注入固件。
 - `firmware/`：完整构建后的固件输出目录，由脚本自动创建和刷新。
 - `wrt_core/build_container.sh`：容器内构建入口。
 - `wrt_core/update.sh`：源码更新、feeds 调整、软件包同步和补丁应用主流程。包含 LAN 地址自定义（`192.168.199.1`）和构建标识注入。
@@ -138,8 +138,8 @@ https://github.com/kenzok8/small-package.git
 - `wrt_core/deconfig/fragments/`：可组合配置片段。
 - `wrt_core/modules/`：模块化脚本，包括仓库准备、网络重试、feeds/custom_feed、源码修正、LuCI 修正（含构建标识 `compilation framework by ZqinKing, build by Aries`）、服务修正、验证、Docker、CUPS 等静态职责模块。
 - `wrt_core/patches/`：补丁、默认设置、Wi-Fi 初始化、NSS 诊断、PBR 规则和其他构建时注入文件。
-- `wrt_core/prebuilt_packages/`：预编译 IPK 包目录（如 qBittorrent），构建后自动集成到固件输出。
-- `docs/`：本地定制文档（CHANGES.md、MAINTENANCE.md、GLIBC_COMPAT.md）。
+- `wrt_core/prebuilt_packages/`：预编译 IPK 包目录（如 qBittorrent），编译阶段通过 `install_prebuilt_ipks()` 注入到 `BUILD_DIR/files/`。
+- `docs/`：本地定制文档（CHANGES.md、MAINTENANCE.md、GLIBC_COMPAT.md、nn6000-led-config.md）。
 
 ## 9. OAF（应用过滤）功能使用说明
 

@@ -33,7 +33,15 @@
 | qBittorrent 包定义 | `wrt_core/prebuilt_packages/qbittorrent.conf` | qBittorrent 默认 Web UI 配置 |
 | Lucky 预编译二进制 | `wrt_core/prebuilt_packages/lucky_2.27.2_Linux_*.tar.gz` | Lucky 预编译二进制包，构建时注入到 lucky Makefile |
 
-### 4. 额外软件包
+### 5. NN6000 LED 标签修正
+
+| 更改 | 文件 | 说明 |
+|------|------|------|
+| 编译时自动修正 DTS LED 标签 | `wrt_core/modules/target_fixes.sh` → `fix_nn6000_led_label()` | 实测 NP6000 物理映射：GPIO 50=绿灯、GPIO 70=红灯、GPIO 69=黄灯。DTS 节点名与标签 `status-red`/`status-green`/`status-blue` 与实际颜色颠倒。编译时通过 awk 脚本自动重命名节点和标签，使 `red:status` 控制红灯、`green:status` 控制绿灯、`yellow:status` 控制黄灯 |
+| 构建流程中调用 | `wrt_core/update.sh` → `stage_pre_install_source_fixes` | 在源码修正阶段调用 `fix_nn6000_led_label` 修复 DTS |
+| 详细分析文档 | `docs/nn6000-led-config.md` | NN6000 LED 配置完整分析：硬件映射、三层软件架构、repacd 状态机、手动控制方法等 |
+
+### 6. 额外软件包
 
 | 包 | 说明 |
 |----|------|
@@ -128,17 +136,19 @@
 本地独有文件和目录（上游不存在）：
 
 ```
-wrt_core/deconfig/glibc.config
 wrt_core/patches/glibc-compat-check.sh
 wrt_core/patches/993_run-custom-boot-scripts
-wrt_core/modules/_deprecated/glibc_compat.sh
 wrt_core/prebuilt_packages/
 ├── install.sh
 ├── qbittorrent.conf
+├── hdsentinel/
 ├── lucky_2.27.2_Linux_arm64_wanji.tar.gz
 └── lucky_2.27.2_Linux_x86_64_wanji.tar.gz
+scripts/
+└── install_glibc_compat.sh
 docs/
 ├── CHANGES.md
 ├── GLIBC_COMPAT.md
-└── MAINTENANCE.md
+├── MAINTENANCE.md
+└── nn6000-led-config.md
 ```
