@@ -59,7 +59,7 @@
 | `wrt_core/modules/glibc_compat.sh` | 运行时 glibc 兼容层：从 Debian 下载 glibc 库注入固件 | ✅ 当前方案 |
 | `wrt_core/patches/glibc-compat-check.sh` | glibc 兼容性诊断脚本 | ✅ 保留 |
 | `wrt_core/deconfig/glibc.config` | ~~系统级 LIBC 切换为 glibc（已废弃）~~ | ❌ 已删除 |
-| `GLIBC_COMPAT=true` | 设备 INI 标记，启用运行时 glibc 兼容层 | ✅ 当前方案 |
+| `GLIBC_COMPAT=true` | 设备 INI 标记，控制 glibc 兼容层（未定义时默认 true） | ✅ 当前方案 |
 
 **历史**：最初采用系统级 LIBC 切换（`CONFIG_LIBC="glibc"`），但上游 kconfig choice 强制重置为 musl，`make` 内部也会重新运行 defconfig 覆盖手动修改。2026-07-17 改为运行时兼容方案——固件使用 musl 编译，通过 `glibc-run` 包装脚本加载 glibc 二进制。
 

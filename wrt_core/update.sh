@@ -29,6 +29,18 @@ LAN_ADDR="192.168.199.1"
 SCRIPT_DIR=$(cd $(dirname $0) && pwd)
 BASE_PATH=${BASE_PATH:-$SCRIPT_DIR}
 
+# 从设备 INI 读取配置键
+read_ini_by_key() {
+    local ini_file="$BASE_PATH/compilecfg/$DEV_NAME.ini"
+    local key=$1
+    [[ -f "$ini_file" ]] && awk -F"=" -v key="$key" '$1 == key {gsub(/\r/,"",$2); print $2}' "$ini_file"
+}
+
+# GLIBC_COMPAT：控制 glibc 运行时兼容层是否注入固件。
+# 未定义时默认启用（true），以保证现有设备行为一致。
+GLIBC_COMPAT=$(read_ini_by_key "GLIBC_COMPAT")
+GLIBC_COMPAT=${GLIBC_COMPAT:-true}
+
 # 按静态职责加载模块，执行顺序仍由本脚本统一控制。
 source "$SCRIPT_DIR/modules/network.sh"
 source "$SCRIPT_DIR/modules/repo.sh"
@@ -116,9 +128,13 @@ stage_pre_install_source_fixes() {
     fix_easytier_mk
     remove_attendedsysupgrade
     fix_kconfig_recursive_dependency
-    install_glibc_run_wrapper
-    install_glibc_init_script
-    setup_glibc_compat
+    if [[ $GLIBC_COMPAT == "true" ]]; then
+        install_glibc_run_wrapper
+        install_glibc_init_script
+        setup_glibc_compat
+    else
+        echo "[跳过] GLIBC_COMPAT=${GLIBC_COMPAT} — 跳过 glibc 兼容层注入"
+    fi
     install_prebuilt_ipks
 
 }

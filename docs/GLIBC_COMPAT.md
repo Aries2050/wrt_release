@@ -8,7 +8,7 @@
 
 ## 原理
 
-通过在设备 INI 配置中设置 `GLIBC_COMPAT=true`，在 `update.sh` 阶段执行以下操作：
+通过在设备 INI 配置中设置 `GLIBC_COMPAT`，在 `update.sh` 阶段执行以下操作（未定义时默认启用）：
 
 1. 从 Debian 仓库下载 glibc 运行时库（`libc6`、`libgcc-s1`、`libstdc++6`）
 2. 解压至 `BUILD_DIR/files/lib/glibc-aarch64/`
@@ -38,13 +38,13 @@ glibc-run /bin/HDSentinel [参数...]
 
 ## 启用方法
 
-编辑 `wrt_core/compilecfg/<device>.ini`，添加：
+在 `wrt_core/compilecfg/<device>.ini` 中添加以下配置控制 glibc 兼容层（未定义时默认启用，设为 `false` 可禁用）：
 
 ```ini
 GLIBC_COMPAT=true
 ```
 
-目前已启用设备：**全部 18 个设备均已启用**
+目前已启用设备：**默认全部启用**，无需显式设置 `GLIBC_COMPAT=true`
 
 正常编译即可，编译时日志中可看到 glibc 兼容层安装信息。
 
@@ -97,14 +97,14 @@ sh wrt_core/patches/glibc-compat-check.sh /tmp/HDSentinel
 | `wrt_core/modules/target_fixes.sh` | 下载 HDSentinel 到 `BUILD_DIR/files/bin/` | — |
 | `wrt_core/patches/glibc-compat-check.sh` | 运行时诊断脚本 | — |
 | `wrt_core/prebuilt_packages/install.sh` | 部署 HDSentinel 和检查兼容性 | — |
-| `wrt_core/compilecfg/<device>.ini` | 设备配置，`GLIBC_COMPAT=true` 触发 | — |
+| `wrt_core/compilecfg/<device>.ini` | 设备配置，`GLIBC_COMPAT` 控制（默认 true） | — |
 | `wrt_core/prebuilt_packages/hdsentinel/*.zip` | 离线回退包（网络不可用时使用） | — |
 
 > **路径辅助函数**：`_glibc_mirrors()`、`_glibc_release()`、`_glibc_arch()`、`_glibc_dir()`、`_glibc_bundle()`、`_glibc_wrapper()`、`_glibc_init_scr()` 用于延迟求值路径和配置，避免模块 source 时全局变量未定义。
 
 ## 注意事项
 
-- 仅在 `GLIBC_COMPAT=true` 标记的设备上启用
-- glibc 固件比 musl 固件大约 **5~10 MB**
+- 未定义 `GLIBC_COMPAT` 时默认启用（true），设为 `false` 可跳过 glibc 兼容层注入
+- glibc 固件比纯 musl 固件大约 **5~10 MB**
 - 部分 musl 优化的包可能不能正常工作，但主流 OpenWRT 包均兼容 glibc
 - 建议在需要运行第三方 glibc 二进制时开启，否则保持 musl 以获得更小体积

@@ -408,10 +408,10 @@ apply_config() {
         cat "$CONFIG_FRAGMENT_DIR/$fragment.config" >> "$BASE_PATH/../$BUILD_DIR/.config"
     done
 
-    # glibc 兼容层：INI 中标记 GLIBC_COMPAT=true 时，在 update.sh 阶段
-    # 通过 glibc_compat.sh 注入 Debian glibc 运行时库到 BUILD_DIR/files/，
+    # glibc 兼容层：在 update.sh 阶段由 GLIBC_COMPAT 配置控制，
+    # 通过 glibc_compat.sh 注入 Debian glibc 运行时库到 BUILD_DIR/files/。
+    # INI 未定义时默认启用（true），设为 false 可跳过注入。
     # 固件仍使用 musl 编译，运行时通过 glibc-run 包装脚本加载 glibc 二进制。
-    # 不再修改 CONFIG_LIBC（系统级切换已被运行时兼容方案替代）。
 }
 
 # 读取设备元信息，确定上游源码和构建目录。
