@@ -1,6 +1,6 @@
 # 本地定制更改概览
 
-> **最后更新**: 2026-07-17
+> **最后更新**: 2026-07-18
 
 本仓库源自 [ZqinKing/wrt_release](https://github.com/ZqinKing/wrt_release)，在此基础上有以下本地定制。
 
@@ -120,6 +120,8 @@
 | HDSentinel 设为全局命令和环境变量 | `wrt_core/modules/target_fixes.sh` | 创建 `/usr/bin/hdsentinel` 包装脚本（自动调用 `glibc-run`）及 `/etc/profile.d/hdsentinel.sh` 设置 `HDSENTINEL` 环境变量 |
 | 回退 smartdns PKG_MIRROR_HASH 至 git archive 原始值 | `wrt_core/modules/package_source_updates.sh` | 移除错误的 sed 替换，`PKG_SOURCE_PROTO:=git` 应用 `5ef82e...` 而非 `fd7bfb...`，修复 CI 构建失败 |
 | qBittorrent 预置固件（内置预编译 IPK） | `wrt_core/modules/target_fixes.sh` + `wrt_core/update.sh` | 新增 `install_prebuilt_ipks()`，在 `stage_pre_install_source_fixes` 中解压预编译 IPK 到 `BUILD_DIR/files/`，实现固件开机即带 qBittorrent |
+| CI 安装 7zip/binutils 修复解压 | `.github/workflows/build_wrt.yml` / `release_wrt.yml` | CI 环境中安装 `binutils`(ar) 和 `7zip`(7zz)，修复预编译 IPK 因缺失 `ar` 导致解压失败的问题 |
+| install_prebuilt_ipks 解压兜底 | `wrt_core/modules/target_fixes.sh` | 解压 IPK 时按 `7zz → 7z → ar` 三级兜底，解压失败后验证 `debian-binary` 是否存在，避免静默失败 |
 
 ## 与上游的差异标识
 

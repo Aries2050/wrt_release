@@ -351,12 +351,25 @@ install_prebuilt_ipks() {
         local tmp_dir
         tmp_dir=$(mktemp -d)
 
-        # 解压 .ipk (ar 归档)
-        (cd "$tmp_dir" && ar -x "$ipk") 2>/dev/null || {
-            echo "  警告: 无法解压 ${name}（ar 不可用？）" >&2
+        # 解压 .ipk (ar 归档)，优先 7zz，兜底 7z/ar
+        if command -v 7zz &>/dev/null; then
+            (cd "$tmp_dir" && 7zz x "$ipk" -y -bso0 -bsp0) 2>/dev/null
+        elif command -v 7z &>/dev/null; then
+            (cd "$tmp_dir" && 7z x "$ipk" -y -bso0 -bsp0) 2>/dev/null
+        elif command -v ar &>/dev/null; then
+            (cd "$tmp_dir" && ar -x "$ipk") 2>/dev/null
+        else
+            echo "  警告: 无法解压 ${name}（7zz/7z/ar 均不可用）" >&2
             rm -rf "$tmp_dir"
             continue
-        }
+        fi
+
+        # 验证解压是否成功
+        if [ ! -f "$tmp_dir/debian-binary" ]; then
+            echo "  警告: 解压 ${name} 失败，未找到 debian-binary" >&2
+            rm -rf "$tmp_dir"
+            continue
+        fi
 
         # 解压 data.tar.* 到目标目录
         local data_tar

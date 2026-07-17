@@ -133,6 +133,7 @@ git push origin main
 - [ ] 启用了 `GLIBC_COMPAT` 的设备 INI 是否正确
 - [ ] `docs/` 目录是否完整
 - [ ] CI 工作流是否正常
+- [ ] CI 环境是否安装 binutils 和 7zip（.github/workflows/）
 
 ## 添加新设备
 
