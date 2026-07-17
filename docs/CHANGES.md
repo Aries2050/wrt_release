@@ -90,7 +90,14 @@
 
 > **注**：旧方案在 `build.sh` 中将预编译 IPK 复制到 `bin/targets/*/packages/` 及 `firmware/`。该功能已由构建时注入（`install_prebuilt_ipks()` → `BUILD_DIR/files/`）替代，`build.sh` 中相关代码已清理。
 
-### 9. 代码质量修复
+### 9. 自定义启动脚本（保留每台路由器的独立修改）
+
+| 更改 | 文件 | 说明 |
+|------|------|------|
+| 新增自定义启动脚本功能 | `wrt_core/patches/993_run-custom-boot-scripts` | 每次刷机/升级后首次启动，自动扫描 `/etc/custom-boot.d/` 下按数字前缀命名的子目录，并执行每个子目录中的 `apply.sh` 脚本（安全限制：固定文件名，防止意外执行任意文件）。目录隔离设计，每项非公共更改独占一个子目录（如 `01-mac-spoof/`、`02-dns-tweak/`）。该目录位于 overlay 分区（`sysupgrade` 保留） |
+| 加入 sysupgrade 备份清单 | `wrt_core/modules/target_fixes.sh` | `/etc/custom-boot.d/` 已加入 `sysupgrade.conf`，与其他保留路径（AdGuardHome、easytier、lucky）一致 |
+
+### 10. 代码质量修复
 
 | 更改 | 文件 | 说明 |
 |------|------|------|
@@ -121,6 +128,7 @@
 ```
 wrt_core/deconfig/glibc.config
 wrt_core/patches/glibc-compat-check.sh
+wrt_core/patches/993_run-custom-boot-scripts
 wrt_core/modules/_deprecated/glibc_compat.sh
 wrt_core/prebuilt_packages/
 ├── install.sh

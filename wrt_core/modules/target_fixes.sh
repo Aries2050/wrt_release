@@ -10,6 +10,7 @@ fix_default_set() {
     install -Dm544 "$BASE_PATH/patches/990_set_argon_primary" "$BUILD_DIR/package/base-files/files/etc/uci-defaults/990_set_argon_primary"
     install -Dm544 "$BASE_PATH/patches/991_custom_settings" "$BUILD_DIR/package/base-files/files/etc/uci-defaults/991_custom_settings"
     install -Dm544 "$BASE_PATH/patches/992_set-wifi-uci.sh" "$BUILD_DIR/package/base-files/files/etc/uci-defaults/992_set-wifi-uci.sh"
+    install -Dm544 "$BASE_PATH/patches/993_run-custom-boot-scripts" "$BUILD_DIR/package/base-files/files/etc/uci-defaults/993_run-custom-boot-scripts"
 
     if [ -f "$BUILD_DIR/package/emortal/autocore/files/tempinfo" ]; then
         if [ -f "$BASE_PATH/patches/tempinfo" ]; then
@@ -228,6 +229,7 @@ add_backup_info_to_sysupgrade() {
 /etc/AdGuardHome.yaml
 /etc/easytier
 /etc/lucky/
+/etc/custom-boot.d/
 EOF
     fi
 }

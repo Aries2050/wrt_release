@@ -35,6 +35,7 @@ wrt_release/
 │   │   ├── 990_set_argon_primary     ← 设置 Argon 默认主题
 │   │   ├── 991_custom_settings       ← 自定义系统设置
 │   │   ├── 992_set-wifi-uci.sh       ← WiFi UCI 默认配置
+│   │   ├── 993_run-custom-boot-scripts ← ⭐ 刷机后自定义启动脚本（固定文件名 apply.sh）
 │   │   ├── glibc-compat-check.sh    ← ⭐ glibc 兼容性诊断脚本
 │   │   ├── tempinfo                  ← 温度信息脚本
 │   │   ├── cpuusage                  ← CPU 使用率脚本

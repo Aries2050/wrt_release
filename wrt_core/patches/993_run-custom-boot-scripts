@@ -1,0 +1,50 @@
+#!/bin/sh
+# 993_run-custom-boot-scripts — UCI defaults
+#
+# 每次刷机/升级后首次启动时，扫描 /etc/custom-boot.d/ 下以数字前缀
+# 命名的子目录，并按顺序执行每个子目录中的 apply.sh 脚本。
+#
+# ⚠ 安全限制：仅运行固定文件名 apply.sh，防止意外执行任意文件。
+#
+# 目录结构使用隔离设计，每项非公共更改独占一个子目录：
+#
+#   /etc/custom-boot.d/
+#   ├── 01-mac-spoof/
+#   │   └── apply.sh          ← 唯一可执行的入口脚本
+#   ├── 02-dns-tweak/
+#   │   └── apply.sh
+#   └── 99-final/
+#       └── apply.sh
+#
+# 该目录位于 overlay 分区（sysupgrade 保留），用于存放每台路由器
+# 独有的非公共定制脚本。
+#
+# 使用方式（在设备端执行）：
+#   mkdir -p /etc/custom-boot.d/01-my-mod
+#   cat > /etc/custom-boot.d/01-my-mod/apply.sh << 'EOF'
+#   #!/bin/sh
+#   echo "my router-specific setup"
+#   EOF
+#   chmod +x /etc/custom-boot.d/01-my-mod/apply.sh
+#
+# ⚠ apply.sh 须为幂等（可重复安全执行）。
+
+CUSTOM_BOOT_DIR="/etc/custom-boot.d"
+
+if [ ! -d "$CUSTOM_BOOT_DIR" ]; then
+    exit 0
+fi
+
+# 按字母顺序遍历每个子目录（数字前缀控制执行次序）
+for module_dir in "$CUSTOM_BOOT_DIR"/*/; do
+    [ -d "$module_dir" ] || continue
+
+    # 执行子目录中的 apply.sh（固定文件名，安全限制）
+    apply_script="$module_dir"apply.sh
+    if [ -f "$apply_script" ] && [ -x "$apply_script" ]; then
+        logger -t "custom-boot" "Running: $apply_script"
+        "$apply_script"
+    fi
+done
+
+exit 0
