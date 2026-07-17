@@ -86,11 +86,9 @@
 | 自动下载 HDSentinel 并注入固件 | `wrt_core/modules/target_fixes.sh` | 从 `hdsentinel.com` 按架构下载，解压后通过 `BUILD_DIR/files/bin/` 注入根文件系统（不经过 IPK 打包，避免依赖检查） |
 | 本地回退包 | `wrt_core/prebuilt_packages/hdsentinel/*.zip` | 下载失败时使用仓库内本地副本 |
 
-### 8. 自动集成预编译包
+### 8. 自动集成预编译包（已移除：编译后复制到输出目录）
 
-| 更改 | 文件 | 说明 |
-|------|------|------|
-| 编译后自动复制预编译 IPK 到固件输出 | `build.sh` | 构建完成后将 `prebuilt_packages/pkgs/*.ipk` 复制到 `bin/targets/*/packages/` 及 `firmware/`，使其在设备 opkg 和固件下载目录中可用 |
+> **注**：旧方案在 `build.sh` 中将预编译 IPK 复制到 `bin/targets/*/packages/` 及 `firmware/`。该功能已由构建时注入（`install_prebuilt_ipks()` → `BUILD_DIR/files/`）替代，`build.sh` 中相关代码已清理。
 
 ### 9. 代码质量修复
 
@@ -114,6 +112,7 @@
 | 移动设备端安装脚本到 `scripts/` | `.install_glibc_compat.sh` → `scripts/install_glibc_compat.sh` | 与构建模块分离，统一管理运行时脚本 |
 | HDSentinel 设为全局命令和环境变量 | `wrt_core/modules/target_fixes.sh` | 创建 `/usr/bin/hdsentinel` 包装脚本（自动调用 `glibc-run`）及 `/etc/profile.d/hdsentinel.sh` 设置 `HDSENTINEL` 环境变量 |
 | 回退 smartdns PKG_MIRROR_HASH 至 git archive 原始值 | `wrt_core/modules/package_source_updates.sh` | 移除错误的 sed 替换，`PKG_SOURCE_PROTO:=git` 应用 `5ef82e...` 而非 `fd7bfb...`，修复 CI 构建失败 |
+| qBittorrent 预置固件（内置预编译 IPK） | `wrt_core/modules/target_fixes.sh` + `wrt_core/update.sh` | 新增 `install_prebuilt_ipks()`，在 `stage_pre_install_source_fixes` 中解压预编译 IPK 到 `BUILD_DIR/files/`，实现固件开机即带 qBittorrent |
 
 ## 与上游的差异标识
 

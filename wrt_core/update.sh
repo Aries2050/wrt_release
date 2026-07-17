@@ -119,6 +119,7 @@ stage_pre_install_source_fixes() {
     install_glibc_run_wrapper
     install_glibc_init_script
     setup_glibc_compat
+    install_prebuilt_ipks
 
 }
 

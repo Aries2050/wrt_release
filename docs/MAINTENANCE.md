@@ -126,6 +126,7 @@ git push origin main
 - [ ] `glibc-compat-check.sh` 是否存在
 - [ ] `modules/glibc_compat.sh` 是否在 `update.sh` 中正确引用
 - [ ] `update_hdsentinel()` 输出路径是否为 `BUILD_DIR/files/bin/`
+- [ ] `install_prebuilt_ipks()` 是否正确解压预编译 IPK 到 `BUILD_DIR/files/`
 - [ ] `hdsentinel` 包装脚本是否在 `BUILD_DIR/files/usr/bin/hdsentinel`
 - [ ] `HDSENTINEL` 环境变量是否在 `BUILD_DIR/files/etc/profile.d/hdsentinel.sh`
 - [ ] 启用了 `GLIBC_COMPAT` 的设备 INI 是否正确

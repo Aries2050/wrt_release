@@ -319,3 +319,56 @@ ENVEOF
 
     rm -rf "$tmp_dir"
 }
+
+
+# ⭐ 将预编译 IPK 注入固件根文件系统（解压到 BUILD_DIR/files/）
+# 用于在固件中预装 qBittorrent 等无法通过源码编译的包。
+install_prebuilt_ipks() {
+    local pkg_dir="$BASE_PATH/prebuilt_packages/pkgs"
+    local target_dir="$BUILD_DIR/files"
+    local count=0
+
+    if [[ ! -d "$pkg_dir" ]]; then
+        echo "警告：预编译包目录不存在 ($pkg_dir)" >&2
+        return 0
+    fi
+
+    local ipk_files=(
+        "$pkg_dir/qbittorrent_"*.ipk
+        "$pkg_dir/luci-app-qbittorrent_"*.ipk
+        "$pkg_dir/luci-i18n-qbittorrent-zh-cn_"*.ipk
+    )
+
+    echo "正在注入预编译 IPK 到固件..."
+    for ipk in "${ipk_files[@]}"; do
+        [[ -f "$ipk" ]] || continue
+        local name
+        name=$(basename "$ipk")
+        echo "  [${name}] 解压中..."
+
+        local tmp_dir
+        tmp_dir=$(mktemp -d)
+
+        # 解压 .ipk (ar 归档)
+        (cd "$tmp_dir" && ar -x "$ipk") 2>/dev/null || {
+            echo "  警告: 无法解压 ${name}（ar 不可用？）" >&2
+            rm -rf "$tmp_dir"
+            continue
+        }
+
+        # 解压 data.tar.* 到目标目录
+        local data_tar
+        for data_tar in "$tmp_dir/data.tar."*; do
+            if [[ -f "$data_tar" ]]; then
+                tar -xf "$data_tar" -C "$target_dir" 2>/dev/null || {
+                    echo "  警告: 解压 data 包失败 (${name})" >&2
+                }
+            fi
+        done
+
+        rm -rf "$tmp_dir"
+        count=$((count + 1))
+    done
+
+    echo "结果: ${count} 个预编译 IPK 已注入固件"
+}
