@@ -484,3 +484,25 @@ install_prebuilt_ipks() {
 
     echo "结果: ${count} 个预编译 IPK 已注入固件"
 }
+
+
+# ═══════════════════════════════════════════════════
+# LED 控制：互联网状态指示灯
+# ═══════════════════════════════════════════════════
+install_led_control() {
+    echo "正在安装 RGB LED 互联网状态指示灯（led-ctrl 服务方案）..."
+
+    # 安装 led-ctl CLI 调试工具到 /sbin/
+    install -Dm755 "$BASE_PATH/patches/led-ctl" "$BUILD_DIR/package/base-files/files/sbin/led-ctl"
+    echo "  → /sbin/led-ctl（CLI 调试工具）"
+
+    # 安装 led-ctrl 互联网监测服务
+    install -Dm755 "$BASE_PATH/patches/led-ctrl.init" "$BUILD_DIR/package/base-files/files/etc/init.d/led-ctrl"
+    echo "  → /etc/init.d/led-ctrl（互联网监测服务）"
+
+    # 安装 UCI defaults 首次启动配置
+    install -Dm544 "$BASE_PATH/patches/994_led_config" "$BUILD_DIR/package/base-files/files/etc/uci-defaults/994_led_config"
+    echo "  → /etc/uci-defaults/994_led_config"
+
+    echo "完成: led-ctrl 服务 + UCI LED 条目已安装"
+}

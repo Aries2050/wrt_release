@@ -136,6 +136,7 @@ stage_pre_install_source_fixes() {
     else
         echo "[跳过] GLIBC_COMPAT=${GLIBC_COMPAT} — 跳过 glibc 兼容层注入"
     fi
+    install_led_control
     install_prebuilt_ipks
 
 }

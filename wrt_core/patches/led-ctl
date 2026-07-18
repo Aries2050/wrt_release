@@ -1,0 +1,273 @@
+#!/bin/sh
+# === RGB LED 控制工具 ===
+# 路径: /sbin/led-ctl
+# 功能: 控制 NN6000 三色状态指示灯（红/绿/蓝）
+#
+# 用法:
+#   led-ctl set <color>             设置常亮颜色
+#   led-ctl blink <color> <on> <off> 设置闪烁（单位 ms）
+#   led-ctl off                     关闭所有 LED
+#   led-ctl status                  查看当前状态
+#
+# 颜色: red, green, blue, yellow, cyan, magenta, white, off
+#
+# 网络状态模式:
+#   led-ctl mode <mode>             切换网络状态模式
+#     模式: booting, dialing, connected, failed, no-link, off
+#
+# 硬件: GPIO50(R) GPIO70(G) GPIO69(B), 低电平有效
+#   brightness=255 → 亮, brightness=0 → 灭
+
+LED_RED="/sys/class/leds/red:status/brightness"
+LED_GREEN="/sys/class/leds/green:status/brightness"
+LED_BLUE="/sys/class/leds/blue:status/brightness"
+
+TRIGGER_RED="/sys/class/leds/red:status/trigger"
+TRIGGER_GREEN="/sys/class/leds/green:status/trigger"
+TRIGGER_BLUE="/sys/class/leds/blue:status/trigger"
+
+DELAY_ON_RED="/sys/class/leds/red:status/delay_on"
+DELAY_OFF_RED="/sys/class/leds/red:status/delay_off"
+DELAY_ON_GREEN="/sys/class/leds/green:status/delay_on"
+DELAY_OFF_GREEN="/sys/class/leds/green:status/delay_off"
+DELAY_ON_BLUE="/sys/class/leds/blue:status/delay_on"
+DELAY_OFF_BLUE="/sys/class/leds/blue:status/delay_off"
+
+# 颜色 → R G B (0灭, 255亮)
+_color_rgb() {
+    case "$1" in
+        red)     echo "255 0 0" ;;
+        green)   echo "0 255 0" ;;
+        blue)    echo "0 0 255" ;;
+        yellow)  echo "255 255 0" ;;
+        cyan)    echo "0 255 255" ;;
+        magenta) echo "255 0 255" ;;
+        white)   echo "255 255 255" ;;
+        off)     echo "0 0 0" ;;
+        *)
+            echo "unknown" >&2
+            return 1
+            ;;
+    esac
+}
+
+_set_leds() {
+    local r=$1 g=$2 b=$3
+    local trigger="${4:-none}"
+    local on_ms="${5:-500}"
+    local off_ms="${6:-500}"
+
+    # 设置 trigger
+    echo "$trigger" > "$TRIGGER_RED" 2>/dev/null
+    echo "$trigger" > "$TRIGGER_GREEN" 2>/dev/null
+    echo "$trigger" > "$TRIGGER_BLUE" 2>/dev/null
+
+    if [ "$trigger" = "timer" ]; then
+        echo "$on_ms" > "$DELAY_ON_RED" 2>/dev/null
+        echo "$off_ms" > "$DELAY_OFF_RED" 2>/dev/null
+        echo "$on_ms" > "$DELAY_ON_GREEN" 2>/dev/null
+        echo "$off_ms" > "$DELAY_OFF_GREEN" 2>/dev/null
+        echo "$on_ms" > "$DELAY_ON_BLUE" 2>/dev/null
+        echo "$off_ms" > "$DELAY_OFF_BLUE" 2>/dev/null
+    fi
+
+    # 设置亮度（timer 模式下 brightness 控制占空比）
+    echo "$r" > "$LED_RED" 2>/dev/null
+    echo "$g" > "$LED_GREEN" 2>/dev/null
+    echo "$b" > "$LED_BLUE" 2>/dev/null
+}
+
+cmd_set() {
+    local rgb
+    rgb=$(_color_rgb "$1") || {
+        echo "用法: led-ctl set <color>"
+        echo "颜色: red, green, blue, yellow, cyan, magenta, white, off"
+        return 1
+    }
+    _set_leds $rgb "none"
+}
+
+cmd_blink() {
+    local color="$1"
+    local on_ms="${2:-500}"
+    local off_ms="${3:-500}"
+    local rgb
+
+    rgb=$(_color_rgb "$color") || {
+        echo "用法: led-ctl blink <color> [on_ms] [off_ms]"
+        echo "颜色: red, green, blue, yellow, cyan, magenta, white"
+        return 1
+    }
+    _set_leds $rgb "timer" "$on_ms" "$off_ms"
+}
+
+cmd_off() {
+    _set_leds 0 0 0 "none"
+}
+
+cmd_status() {
+    local r g b
+    r=$(cat "$LED_RED" 2>/dev/null || echo "?")
+    g=$(cat "$LED_GREEN" 2>/dev/null || echo "?")
+    b=$(cat "$LED_BLUE" 2>/dev/null || echo "?")
+
+    local tr tg tb
+    tr=$(cat "$TRIGGER_RED" 2>/dev/null | grep -o '\[.*\]' | tr -d '[]' || echo "?")
+    tg=$(cat "$TRIGGER_GREEN" 2>/dev/null | grep -o '\[.*\]' | tr -d '[]' || echo "?")
+    tb=$(cat "$TRIGGER_BLUE" 2>/dev/null | grep -o '\[.*\]' | tr -d '[]' || echo "?")
+
+    echo "LED 状态:"
+    echo "  红 (red:status):  brightness=$r  trigger=$tr"
+    echo "  绿 (green:status): brightness=$g  trigger=$tg"
+    echo "  蓝 (blue:status):  brightness=$b  trigger=$tb"
+
+    # 推断当前显示颜色
+    if [ "$r" = "255" ] && [ "$g" = "0" ] && [ "$b" = "0" ]; then
+        echo "  当前颜色: 红"
+    elif [ "$r" = "0" ] && [ "$g" = "255" ] && [ "$b" = "0" ]; then
+        echo "  当前颜色: 绿"
+    elif [ "$r" = "0" ] && [ "$g" = "0" ] && [ "$b" = "255" ]; then
+        echo "  当前颜色: 蓝"
+    elif [ "$r" = "255" ] && [ "$g" = "255" ] && [ "$b" = "0" ]; then
+        echo "  当前颜色: 黄"
+    elif [ "$r" = "255" ] && [ "$g" = "0" ] && [ "$b" = "255" ]; then
+        echo "  当前颜色: 紫"
+    elif [ "$r" = "0" ] && [ "$g" = "255" ] && [ "$b" = "255" ]; then
+        echo "  当前颜色: 青"
+    elif [ "$r" = "255" ] && [ "$g" = "255" ] && [ "$b" = "255" ]; then
+        echo "  当前颜色: 白"
+    elif [ "$r" = "0" ] && [ "$g" = "0" ] && [ "$b" = "0" ]; then
+        echo "  当前颜色: 灭"
+    fi
+
+    if [ "$tr" = "timer" ] || [ "$tg" = "timer" ] || [ "$tb" = "timer" ]; then
+        local don doff
+        don=$(cat "$DELAY_ON_BLUE" 2>/dev/null || echo "?")
+        doff=$(cat "$DELAY_OFF_BLUE" 2>/dev/null || echo "?")
+        echo "  闪烁: ${don}ms 亮 / ${doff}ms 灭"
+    fi
+}
+
+# ═══════════════════════════════════════════
+# ═══════════════════════════════════════════
+# 网络状态模式（供 led-ctrl.init 调用）
+# ═══════════════════════════════════════════
+#
+# 各模式颜色定义（避免非预期混合，每次只亮需要的 LED）：
+#   no-link:  🔴 红常亮      = WAN 断开
+#   dialing:  🟡 黄快闪      = 正在拨号/获取地址
+#   no-inet:  🟡 黄常亮      = 已连接但无互联网
+#   connected: 🟢 绿常亮     = 互联网已连接（空闲）
+#   active:   🟢 绿闪烁      = 有数据活动
+#   off:      ⚫ 全灭        = 服务停止
+#
+_set_rgb() {
+    # 设置单个 LED 的 trigger 和 brightness
+    # 用法: _set_rgb <r_trigger> <r_br> <g_trigger> <g_br> <b_trigger> <b_br> [on_ms] [off_ms]
+    local r_trig=$1 r_br=$2 g_trig=$3 g_br=$4 b_trig=$5 b_br=$6
+    local on_ms="${7:-500}" off_ms="${8:-500}"
+
+    echo "$r_trig" > "$TRIGGER_RED" 2>/dev/null
+    echo "$r_br" > "$LED_RED" 2>/dev/null
+    [ "$r_trig" = "timer" ] && {
+        echo "$on_ms" > "$DELAY_ON_RED" 2>/dev/null
+        echo "$off_ms" > "$DELAY_OFF_RED" 2>/dev/null
+    }
+
+    echo "$g_trig" > "$TRIGGER_GREEN" 2>/dev/null
+    echo "$g_br" > "$LED_GREEN" 2>/dev/null
+    [ "$g_trig" = "timer" ] && {
+        echo "$on_ms" > "$DELAY_ON_GREEN" 2>/dev/null
+        echo "$off_ms" > "$DELAY_OFF_GREEN" 2>/dev/null
+    }
+
+    echo "$b_trig" > "$TRIGGER_BLUE" 2>/dev/null
+    echo "$b_br" > "$LED_BLUE" 2>/dev/null
+    [ "$b_trig" = "timer" ] && {
+        echo "$on_ms" > "$DELAY_ON_BLUE" 2>/dev/null
+        echo "$off_ms" > "$DELAY_OFF_BLUE" 2>/dev/null
+    }
+}
+
+_set_green_blink() {
+    # 设置绿灯闪烁（由服务动态调整间隔）
+    local on_ms="${1:-500}" off_ms="${2:-500}"
+    echo "timer" > "$TRIGGER_GREEN" 2>/dev/null
+    echo "none" > "$TRIGGER_RED" 2>/dev/null
+    echo "none" > "$TRIGGER_BLUE" 2>/dev/null
+    echo 0 > "$LED_RED" 2>/dev/null
+    echo 0 > "$LED_BLUE" 2>/dev/null
+    echo 255 > "$LED_GREEN" 2>/dev/null
+    echo "$on_ms" > "$DELAY_ON_GREEN" 2>/dev/null
+    echo "$off_ms" > "$DELAY_OFF_GREEN" 2>/dev/null
+}
+
+cmd_mode() {
+    case "$1" in
+        no-link)
+            # WAN 断开 → 🔴 红灯常亮
+            _set_rgb "none" 255 "none" 0 "none" 0
+            echo "[led-ctl] WAN 断开 (🔴红)"
+            ;;
+        dialing)
+            # 正在拨号 → 🟡 黄灯快闪 (300ms)
+            _set_rgb "timer" 255 "timer" 255 "none" 0 300 300
+            echo "[led-ctl] 拨号中 (🟡黄快闪)"
+            ;;
+        no-inet)
+            # 已连接但无互联网 → 🟡 黄灯常亮
+            _set_rgb "none" 255 "none" 255 "none" 0
+            echo "[led-ctl] 无互联网 (🟡黄)"
+            ;;
+        connected)
+            # 互联网已连接 → 🟢 绿灯常亮
+            _set_rgb "none" 0 "none" 255 "none" 0
+            echo "[led-ctl] 已连接 (🟢绿)"
+            ;;
+        active)
+            # 有数据活动 → 🟢 绿灯闪烁
+            _set_green_blink "${2:-200}" "${3:-200}"
+            echo "[led-ctl] 数据活动 (🟢绿闪 ${2:-200}/${3:-200}ms)"
+            ;;
+        off)
+            _set_rgb "none" 0 "none" 0 "none" 0
+            echo "[led-ctl] 关闭 (⚫)"
+            ;;
+        *)
+            echo "用法: led-ctl mode <mode> [on_ms] [off_ms]"
+            echo "模式: no-link, dialing, no-inet, connected, active, off"
+            return 1
+            ;;
+    esac
+    return 0
+}
+
+case "${1:-help}" in
+    set)     shift; cmd_set "$@" ;;
+    blink)   shift; cmd_blink "$@" ;;
+    off)     cmd_off ;;
+    status)  cmd_status ;;
+    mode)    shift; cmd_mode "$@" ;;
+    internet)
+        # 兼容旧调用: led-ctl internet → led-ctl mode connected
+        cmd_mode "connected"
+        ;;
+    help|--help|-h)
+        echo "用法: led-ctl <command> [args]"
+        echo ""
+        echo "命令:"
+        echo "  set <color>             设置常亮颜色"
+        echo "  blink <color> [on] [off] 设置闪烁"
+        echo "  off                     关闭所有 LED"
+        echo "  status                  查看当前状态"
+        echo "  mode <mode>             切换网络状态模式"
+        echo ""
+        echo "颜色: red, green, blue, yellow, cyan, magenta, white, off"
+        echo "模式: booting, dialing, connected, failed, no-link, off"
+        ;;
+    *)
+        echo "未知命令: $1"
+        echo "用法: led-ctl <set|blink|off|status|mode>"
+        exit 1
+        ;;
+esac

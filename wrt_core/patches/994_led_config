@@ -1,0 +1,45 @@
+#!/bin/sh
+# 994_led_config — UCI defaults：RGB LED 配置（led-ctrl 服务方案）
+#
+# LED 由 /etc/init.d/led-ctrl 服务动态管理，操作同一 RGB 灯珠，
+# 避免非预期混色。
+#
+# LuCI 中可查看 LED 条目，但 trigger 显示为 "none"（由服务接管）。
+# 如需手动管理，请停用服务：
+#   /etc/init.d/led-ctrl stop && /etc/init.d/led-ctrl disable
+#   /etc/init.d/led reload
+#
+# LED 含义（led-ctrl 服务运行时）：
+#   🔴 红常亮     → WAN 断开
+#   🟡 黄快闪     → 正在拨号
+#   🟡 黄常亮     → 已连接但无互联网
+#   🟢 绿常亮     → 互联网已连接（空闲）
+#   🟢 绿闪烁     → 有数据活动（间隔随速率变短）
+# ============================================
+
+# 注册 LED 条目使 LuCI 能识别（trigger=none 由服务接管）
+uci -q delete system.led_red
+uci set system.led_red='led'
+uci set system.led_red.name='状态灯 (红色)'
+uci set system.led_red.sysfs='red:status'
+uci set system.led_red.trigger='none'
+
+uci -q delete system.led_green
+uci set system.led_green='led'
+uci set system.led_green.name='状态灯 (绿色)'
+uci set system.led_green.sysfs='green:status'
+uci set system.led_green.trigger='none'
+
+uci -q delete system.led_blue
+uci set system.led_blue='led'
+uci set system.led_blue.name='状态灯 (蓝色)'
+uci set system.led_blue.sysfs='blue:status'
+uci set system.led_blue.trigger='none'
+
+uci commit system
+
+# 启用并启动 led-ctrl 服务
+/etc/init.d/led-ctrl enable
+/etc/init.d/led-ctrl start
+
+exit 0

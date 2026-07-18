@@ -1,0 +1,304 @@
+#!/bin/sh /etc/rc.common
+# === RGB LED 互联网状态监测服务 ===
+# 路径: /etc/init.d/led-ctrl
+# 启动优先级: START=97 (标准 LED init=96 之后启动)
+# 停止优先级: STOP=15
+#
+# LED 状态（同一 RGB 灯珠，避免非预期混色）：
+#   🔴 红常亮     → WAN 断开（网线未插）
+#   🟡 黄快闪     → 正在拨号 / 获取地址
+#   🟡 黄常亮     → 已连接但无互联网连通性
+#   🟢 绿常亮     → 互联网已连接（空闲）
+#   🟢 绿闪烁     → 有数据活动（闪烁间隔随速率变短）
+#
+# 闪烁间隔（上下行合计，1000M下/60M上，按数量级分档）：
+#   速率 < 10KB/s        → 常亮
+#   10KB/s - 100KB/s     → 亮200ms 灭1000ms（1.2s 周期，短闪长等）
+#   100KB/s - 1MB/s      → 亮300ms 灭500ms（800ms 周期）
+#   1MB/s - 10MB/s       → 亮200ms 灭200ms（400ms 周期，50% 占空）
+#   10MB/s - 50MB/s      → 亮100ms 灭100ms（200ms 周期，快闪）
+#   > 50MB/s             → 亮50ms 灭50ms（100ms 周期，极速）
+#
+# 依赖: ubus, led-ctl, jsonfilter
+
+USE_PROCD=1
+START=97
+STOP=15
+
+# ─── 配置 ───
+PING_TARGETS="223.5.5.5 114.114.114.114"
+PING_TIMEOUT=3
+WAN_IFACE="wan"               # ubus 接口名
+WAN_SYS_NET="wan"             # sysfs 网络设备名（可能与 ubus 不同，如 eth0.2）
+IDLE_CHECKS=3                 # 连续几次空闲才回退常亮
+ACTIVITY_INTERVAL=2           # 流量检测间隔（秒）
+
+# ─── 工具函数 ───
+get_wan_state() {
+    local status up pending
+    status=$(ubus call network.interface."$WAN_IFACE" status 2>/dev/null) || { echo "down"; return; }
+    up=$(echo "$status" | jsonfilter -e '@.up' 2>/dev/null)
+    pending=$(echo "$status" | jsonfilter -e '@.pending' 2>/dev/null)
+    if [ "$up" = "true" ]; then echo "up"
+    elif [ "$pending" = "true" ]; then echo "pending"
+    else echo "down"; fi
+}
+
+check_connectivity() {
+    for target in $PING_TARGETS; do
+        if ping -c 1 -W "$PING_TIMEOUT" "$target" >/dev/null 2>&1; then
+            return 0
+        fi
+    done
+    return 1
+}
+
+# ─── LED 控制（直接操作 sysfs，避免颜色混合） ───
+LED_RED="/sys/class/leds/red:status"
+LED_GREEN="/sys/class/leds/green:status"
+LED_BLUE="/sys/class/leds/blue:status"
+
+_led_all_off() {
+    echo "none" > "$LED_RED/trigger" 2>/dev/null
+    echo "none" > "$LED_GREEN/trigger" 2>/dev/null
+    echo "none" > "$LED_BLUE/trigger" 2>/dev/null
+    echo 0 > "$LED_RED/brightness" 2>/dev/null
+    echo 0 > "$LED_GREEN/brightness" 2>/dev/null
+    echo 0 > "$LED_BLUE/brightness" 2>/dev/null
+}
+
+_led_red_on() {
+    _led_all_off
+    echo "default-on" > "$LED_RED/trigger" 2>/dev/null
+    echo 255 > "$LED_RED/brightness" 2>/dev/null
+}
+
+_led_yellow_blink() {
+    local on_ms="${1:-300}" off_ms="${2:-300}"
+    _led_all_off
+    echo "timer" > "$LED_RED/trigger" 2>/dev/null
+    echo "$on_ms" > "$LED_RED/delay_on" 2>/dev/null
+    echo "$off_ms" > "$LED_RED/delay_off" 2>/dev/null
+    echo 255 > "$LED_RED/brightness" 2>/dev/null
+    echo "timer" > "$LED_GREEN/trigger" 2>/dev/null
+    echo "$on_ms" > "$LED_GREEN/delay_on" 2>/dev/null
+    echo "$off_ms" > "$LED_GREEN/delay_off" 2>/dev/null
+    echo 255 > "$LED_GREEN/brightness" 2>/dev/null
+}
+
+_led_yellow_on() {
+    _led_all_off
+    echo "default-on" > "$LED_RED/trigger" 2>/dev/null
+    echo 255 > "$LED_RED/brightness" 2>/dev/null
+    echo "default-on" > "$LED_GREEN/trigger" 2>/dev/null
+    echo 255 > "$LED_GREEN/brightness" 2>/dev/null
+}
+
+_led_green_on() {
+    _led_all_off
+    echo "default-on" > "$LED_GREEN/trigger" 2>/dev/null
+    echo 255 > "$LED_GREEN/brightness" 2>/dev/null
+}
+
+_led_green_blink() {
+    local on_ms="${1:-500}" off_ms="${2:-500}"
+    _led_all_off
+    echo "timer" > "$LED_GREEN/trigger" 2>/dev/null
+    echo "$on_ms" > "$LED_GREEN/delay_on" 2>/dev/null
+    echo "$off_ms" > "$LED_GREEN/delay_off" 2>/dev/null
+    echo 255 > "$LED_GREEN/brightness" 2>/dev/null
+}
+
+# ─── 流量速率检测 ───
+_get_rx_bytes() {
+    cat "/sys/class/net/$WAN_SYS_NET/statistics/rx_bytes" 2>/dev/null || echo 0
+}
+_get_tx_bytes() {
+    cat "/sys/class/net/$WAN_SYS_NET/statistics/tx_bytes" 2>/dev/null || echo 0
+}
+
+# 速率 → 亮/灭间隔（ms），输出两值：on_ms off_ms
+# 下行 1000Mbps(125MB/s) + 上行 60Mbps(7.5MB/s)
+# 总带宽约 132.5MB/s，按数量级细化占空比
+# 低速时短亮长灭，高速时均匀快闪
+_rate_to_blink() {
+    local rate="$1"  # bytes/s (rx+tx 合计)
+    # < 10KB/s → 常亮（返回 0 0 表示不闪烁）
+    [ "$rate" -lt $((10 * 1024)) ] && { echo "0 0"; return; }
+    # 10KB-100KB → 亮200ms 灭1000ms（1.2s 周期，短闪长等）
+    [ "$rate" -lt $((100 * 1024)) ] && { echo "200 1000"; return; }
+    # 100KB-1MB → 亮300ms 灭500ms（800ms 周期）
+    [ "$rate" -lt $((1024 * 1024)) ] && { echo "300 500"; return; }
+    # 1MB-10MB → 亮200ms 灭200ms（400ms 周期，50% 占空）
+    [ "$rate" -lt $((10 * 1024 * 1024)) ] && { echo "200 200"; return; }
+    # 10MB-50MB → 亮100ms 灭100ms（200ms 周期，快闪）
+    [ "$rate" -lt $((50 * 1024 * 1024)) ] && { echo "100 100"; return; }
+    # > 50MB/s → 亮50ms 灭50ms（100ms 周期，极速）
+    echo "50 50"
+}
+
+# ─── 状态管理 ───
+_MODE=""
+
+set_mode() {
+    local mode="$1" opt1="$2" opt2="$3"
+    [ "$mode" = "$_MODE" ] && [ -z "$opt1" ] && return 0
+    _MODE="$mode"
+    case "$mode" in
+        no-link)   _led_red_on ;;
+        dialing)   _led_yellow_blink "${opt1:-300}" "${opt2:-300}" ;;
+        no-inet)   _led_yellow_on ;;
+        connected) _led_green_on ;;
+        active)    _led_green_blink "${opt1:-200}" "${opt2:-200}" ;;
+        off)       _led_all_off ;;
+    esac
+}
+
+# ─── 主状态机 ───
+#
+# 外部状态（WAN 物理/链路层）→ 内部状态（连通性/活动）
+#
+#   no-link ← WAN down
+#      ↓ WAN pending
+#   dialing
+#      ↓ WAN up
+#   ┌───→ no-inet ← ping 不通
+#   │        ↓ ping 通
+#   │    connected (green solid)
+#   │     ↕ 有数据活动 / 连续空闲
+#   │    active (green blink)
+#   └─── WAN 断开 → no-link
+#
+daemon_loop() {
+    local wan_state
+
+    _MODE=""
+    set_mode "no-link"
+
+    while true; do
+        wan_state=$(get_wan_state)
+
+        case "$wan_state" in
+            down)
+                set_mode "no-link"
+                sleep 2
+                ;;
+            pending)
+                set_mode "dialing"
+                sleep 2
+                ;;
+            up)
+                if ! check_connectivity; then
+                    set_mode "no-inet"
+                    sleep 5
+                    continue
+                fi
+                # 已连接 → 进入活动监测子循环
+                _activity_loop
+                ;;
+        esac
+    done
+}
+
+# 活动监测子循环（connected ↔ active 切换，WAN 断开时返回）
+_activity_loop() {
+    local prev_rx=0 curr_rx=0 prev_tx=0 curr_tx=0
+    local rate=0 on_ms=0 off_ms=0 idle_count=0 ws
+
+    set_mode "connected"
+    prev_rx=$(_get_rx_bytes)
+    prev_tx=$(_get_tx_bytes)
+    idle_count=0
+
+    while true; do
+        ws=$(get_wan_state)
+        [ "$ws" != "up" ] && return  # WAN 断开 → 回主循环
+
+        if ! check_connectivity; then
+            # 连通性丢失 → 等待恢复或 WAN 断开
+            set_mode "no-inet"
+            while true; do
+                sleep 5
+                ws=$(get_wan_state)
+                [ "$ws" != "up" ] && return
+                check_connectivity && break
+            done
+            # 已恢复 → 重新进入活动监测
+            set_mode "connected"
+            prev_rx=$(_get_rx_bytes)
+            prev_tx=$(_get_tx_bytes)
+            idle_count=0
+            continue
+        fi
+
+        # 检测上下行总流量并更新 LED
+        sleep "$ACTIVITY_INTERVAL"
+        curr_rx=$(_get_rx_bytes)
+        curr_tx=$(_get_tx_bytes)
+        # 下行 + 上行合计速率（bytes/s）
+        rate=$(( ( (curr_rx - prev_rx) + (curr_tx - prev_tx) ) / ACTIVITY_INTERVAL ))
+        [ "$rate" -lt 0 ] && rate=0
+        prev_rx=$curr_rx
+        prev_tx=$curr_tx
+
+        # 读取亮灭间隔
+        read on_ms off_ms <<EOF
+$(_rate_to_blink "$rate")
+EOF
+
+        if [ "$on_ms" -eq 0 ]; then
+            idle_count=$((idle_count + 1))
+            [ "$idle_count" -ge "$IDLE_CHECKS" ] && set_mode "connected"
+        else
+            idle_count=0
+            set_mode "active" "$on_ms" "$off_ms"
+        fi
+    done
+}
+
+# ═══════════════════════════════════════════
+# procd 入口
+# ═══════════════════════════════════════════
+
+start_service() {
+    procd_open_instance
+    procd_set_param command /bin/sh "$0" daemon
+    procd_set_param respawn 3600 5 0
+    procd_set_param stdout 1
+    procd_set_param stderr 1
+    procd_close_instance
+}
+
+service_triggers() {
+    procd_add_reload_interface_trigger "wan"
+    procd_add_reload_interface_trigger "wan6"
+    procd_add_raw_trigger "net" 1000 "/etc/init.d/led-ctrl reload"
+}
+
+stop_service() {
+    /sbin/led-ctl off
+    /etc/init.d/led reload 2>/dev/null || true
+}
+
+reload_service() {
+    _MODE=""
+    # SIGHUP 触发检测
+    local pid
+    pid=$(pgrep -f "^/bin/sh .*led-ctrl.*daemon" | head -1)
+    [ -n "$pid" ] && kill -HUP "$pid" 2>/dev/null
+}
+
+# ═══════════════════════════════════════════
+# 入口
+# ═══════════════════════════════════════════
+
+trap 'reload_service' HUP
+
+case "${1:-}" in
+    daemon)
+        daemon_loop
+        ;;
+    *)
+        . /etc/rc.common
+        ;;
+esac

@@ -133,12 +133,47 @@
 | CI 安装 7zip/binutils 修复解压 | `.github/workflows/build_wrt.yml` / `release_wrt.yml` | CI 环境中安装 `binutils`(ar) 和 `7zip`(7zz)，修复预编译 IPK 因缺失 `ar` 导致解压失败的问题 |
 | install_prebuilt_ipks 解压兜底 | `wrt_core/modules/target_fixes.sh` | 解压 IPK 时按 `7zz → 7z → ar` 三级兜底，解压失败后验证 `debian-binary` 是否存在，避免静默失败 |
 
+### 11. RGB LED 互联网状态指示灯（5 状态服务方案）
+
+由于三色为同一 RGB 灯珠（混色），由 `/etc/init.d/led-ctrl` 服务集中管理，**每次只亮需要的 LED，避免非预期混色**。
+
+| 更改 | 文件 | 说明 |
+|------|------|------|
+| LED CLI 工具 | `wrt_core/patches/led-ctl` | `/sbin/led-ctl` 命令行调试工具，支持 `mode no-link/dialing/no-inet/connected/active` |
+| LED 联网监测服务 | `wrt_core/patches/led-ctrl.init` | `/etc/init.d/led-ctrl` procd 服务，5 状态状态机 + 流量速率检测 |
+| UCI 默认 LED 配置 | `wrt_core/patches/994_led_config` | 首次启动注册 LED 条目到 LuCI + 启用 led-ctrl 服务 |
+| 构建集成 | `wrt_core/modules/target_fixes.sh` → `install_led_control()` | 在构建时注入上述文件 |
+
+**5 状态定义：**
+
+| 灯光 | 状态 | 触发条件 |
+|------|------|----------|
+| 🔴 红常亮 | `no-link` | WAN 接口 down（网线未插） |
+| 🟡 黄快闪 (300ms) | `dialing` | WAN 接口 pending（PPPoE 拨号/获取地址） |
+| 🟡 黄常亮 | `no-inet` | WAN up 但 ping 不通目标 |
+| 🟢 绿常亮 | `connected` | 互联网已连接，无数据活动 |
+| 🟢 绿闪烁（间隔可变） | `active` | 有数据活动，闪烁间隔随速率变短 |
+
+**绿灯闪烁间隔自适应（上下行合计，1000M下/60M上）：**
+
+| 速率 (rx+tx) | 亮/灭间隔 | 周期 | 说明 |
+|------|----------|------|------|
+| < 10KB/s | 常亮 | — | 空闲 |
+| 10KB~100KB/s | 200ms / 1000ms | 1.2s | 短闪长等，最慢 |
+| 100KB~1MB/s | 300ms / 500ms | 800ms | 一般活动 |
+| 1MB~10MB/s | 200ms / 200ms | 400ms | 50% 占空，活跃 |
+| 10MB~50MB/s | 100ms / 100ms | 200ms | 快闪 |
+| > 50MB/s | 50ms / 50ms | 100ms | 极速 |
+
 ## 与上游的差异标识
 
 本地独有文件和目录（上游不存在）：
 
 ```
 wrt_core/patches/glibc-compat-check.sh
+wrt_core/patches/led-ctl
+wrt_core/patches/led-ctrl.init
+wrt_core/patches/994_led_config
 wrt_core/patches/993_run-custom-boot-scripts
 wrt_core/prebuilt_packages/
 ├── install.sh
