@@ -1,6 +1,6 @@
 # 维护指南
 
-> **最后更新**: 2026-07-17
+> **最后更新**: 2026-07-19
 
 ## 仓库结构
 
@@ -49,11 +49,22 @@ wrt_release/
 │       ├── lucky_2.27.2_Linux_arm64_wanji.tar.gz
 │       └── lucky_2.27.2_Linux_x86_64_wanji.tar.gz
 ├── scripts/                          ← ⭐ 设备端运行时脚本
-│   └── install_glibc_compat.sh       ← glibc 运行时安装脚本（设备上直接执行）
+│   ├── install_glibc_compat.sh       ← glibc 运行时安装脚本（设备上直接执行）
+│   └── check_stock_leds.sh           ← 原厂固件 LED 全面检查脚本
 ├── docs/                             ← ⭐ 本文档目录（本地定制）
 │   ├── CHANGES.md                    ← 本地定制更改概览
 │   ├── GLIBC_COMPAT.md               ← glibc 兼容层说明
-│   └── MAINTENANCE.md                ← 本文档
+│   ├── MAINTENANCE.md                ← 本文档
+│   ├── nn6000-led-config.md          ← NN6000 LED 配置分析（含 ImmortalWRT 差异与修复）
+│   ├── nn6000-stock-fingerprint.md   ← 原厂固件特征指纹（Web/SSH 快速识别）
+│   └── stock-firmware/               ← ⭐ 从原厂固件提取的参考脚本
+│       └── led/
+│           ├── README.md             ← LED 控制架构总览
+│           ├── wan_net_stat.sh       ← 主控制器（每秒 ping 切换红/蓝灯）
+│           ├── 50-wps-hotplug.sh     ← WPS 按钮 LED 处理
+│           ├── repacd-led.sh         ← repacd LED 状态管理库
+│           ├── led.init              ← OpenWrt 标准 LED 框架
+│           └── any_rclocal.init      ← 后台启动框架
 ```
 
 ## 构建阶段流程

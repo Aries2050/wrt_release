@@ -1,6 +1,6 @@
 # 本地定制更改概览
 
-> **最后更新**: 2026-07-18
+> **最后更新**: 2026-07-19
 
 本仓库源自 [ZqinKing/wrt_release](https://github.com/ZqinKing/wrt_release)，在此基础上有以下本地定制。
 
@@ -33,13 +33,15 @@
 | qBittorrent 包定义 | `wrt_core/prebuilt_packages/qbittorrent.conf` | qBittorrent 默认 Web UI 配置 |
 | Lucky 预编译二进制 | `wrt_core/prebuilt_packages/lucky_2.27.2_Linux_*.tar.gz` | Lucky 预编译二进制包，构建时注入到 lucky Makefile |
 
-### 5. NN6000 LED 标签修正
+### 5. NN6000 LED GPIO 极性修正
 
 | 更改 | 文件 | 说明 |
 |------|------|------|
-| 编译时自动修正 DTS LED 标签 | `wrt_core/modules/target_fixes.sh` → `fix_nn6000_led_label()` | 实测 NP6000 物理映射：GPIO 50=绿灯、GPIO 70=红灯、GPIO 69=黄灯。DTS 节点名与标签 `status-red`/`status-green`/`status-blue` 与实际颜色颠倒。编译时通过 awk 脚本自动重命名节点和标签，使 `red:status` 控制红灯、`green:status` 控制绿灯、`yellow:status` 控制黄灯 |
+| 编译时修正 GPIO 极性 flags | `wrt_core/modules/target_fixes.sh` → `fix_nn6000_led_label()` | 经 2026-07-18/19 在原厂固件和 ImmortalWRT 上逐灯交叉验证，**标签无错**（GPIO 50=🔴红、GPIO 70=🟢绿、GPIO 69=🔵蓝）。真实问题是 ImmortalWRT DTS 中 GPIO flags 为 `ACTIVE_HIGH`(0x00) 而硬件为低电平有效，改为 `ACTIVE_LOW`(0x01) |
 | 构建流程中调用 | `wrt_core/update.sh` → `stage_pre_install_source_fixes` | 在源码修正阶段调用 `fix_nn6000_led_label` 修复 DTS |
-| 详细分析文档 | `docs/nn6000-led-config.md` | NN6000 LED 配置完整分析：硬件映射、三层软件架构、repacd 状态机、手动控制方法等 |
+| 详细分析文档 | `docs/nn6000-led-config.md` | NN6000 LED 配置完整分析：硬件映射、原厂控制逻辑（wan_net_stat.sh/repacd/WPS）、ImmortalWRT 差异、手动控制方法等 |
+| 原厂 LED 脚本提取 | `docs/stock-firmware/led/` | 从原厂固件提取的 LED 控制脚本（wan_net_stat.sh、50-wps-hotplug.sh、repacd-led.sh 等） |
+| 原厂固件特征指纹 | `docs/nn6000-stock-fingerprint.md` | 通过 Web/SSH 快速判断设备是否运行原厂固件的方法 |
 
 ### 6. 额外软件包
 
