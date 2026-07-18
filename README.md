@@ -126,6 +126,12 @@ https://github.com/kenzok8/small-package.git
 
 相关增删和同步逻辑位于 `wrt_core/update.sh` 编排的 `wrt_core/modules/` 静态阶段。配置片段只选择 Kconfig，不负责 clone 仓库、修改 feeds 或安装 feeds。
 
+### NN6000v2 LED 说明
+
+Link NN6000v2 的 LED 存在 GPIO 极性配置问题。ImmortalWRT 上游 DTS 中 GPIO flags 为 `GPIO_ACTIVE_HIGH`(0x00)，但硬件为低电平有效，导致 `brightness` 值反相（写 1 灭、写 0 亮）。
+
+编译时自动修正（`fix_nn6000_led_label`）将三个状态 LED 的 flags 改为 `GPIO_ACTIVE_LOW`(0x01)，修复后 `brightness=1` 正确点亮。详见 [`docs/nn6000-led-config.md`](docs/nn6000-led-config.md)。
+
 ## 8. 项目结构说明
 
 - `build.sh`：主编译入口，负责设备选择、模式选择、配置组合、容器构建和固件收集。预编译 IPK（如 qBittorrent）在编译阶段通过 `install_prebuilt_ipks()` 注入固件。
@@ -139,7 +145,8 @@ https://github.com/kenzok8/small-package.git
 - `wrt_core/modules/`：模块化脚本，包括仓库准备、网络重试、feeds/custom_feed、源码修正、LuCI 修正（含构建标识 `compilation framework by ZqinKing, build by Aries`）、服务修正、验证、Docker、CUPS 等静态职责模块。
 - `wrt_core/patches/`：补丁、默认设置、Wi-Fi 初始化、NSS 诊断、PBR 规则和其他构建时注入文件。
 - `wrt_core/prebuilt_packages/`：预编译 IPK 包目录（如 qBittorrent），编译阶段通过 `install_prebuilt_ipks()` 注入到 `BUILD_DIR/files/`。
-- `docs/`：本地定制文档（CHANGES.md、MAINTENANCE.md、GLIBC_COMPAT.md、nn6000-led-config.md）。
+- `docs/`：本地定制文档。包含定制变更记录（CHANGES.md）、仓库结构维护指南（MAINTENANCE.md）、glibc 兼容层说明（GLIBC_COMPAT.md）、NN6000 LED 配置分析与 ImmortalWRT 差异修复（nn6000-led-config.md）、原厂固件特征指纹（nn6000-stock-fingerprint.md）、以及从 Linksys NN6000 原厂固件提取的参考脚本（stock-firmware/led/）。
+- `scripts/`：设备端运行时辅助脚本。包括 glibc 兼容层安装脚本和原厂固件 LED 检测脚本。
 
 ## 9. OAF（应用过滤）功能使用说明
 
