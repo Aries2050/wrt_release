@@ -105,13 +105,17 @@ hexdump -C /sys/bus/platform/drivers/leds-gpio/soc:leds/of_node/led@50/gpios
 ### 2.6 固件进程特征
 
 ```bash
+# 通过 SSH 检查原厂特有进程
+ps | grep wan_net_stat
 ls /etc/init.d/ | grep -E 'repacd|wsplcd|hyd|acd'
 ```
 
-| 固件 | 特有服务 |
-|---|---|
-| **原厂** | `repacd` `wsplcd` `hyd` `hyfi-bridging` `acd` `lbd` 等 Linksys 定制服务 |
-| **ImmortalWRT** | 无上述服务 |
+| 检测项 | 原厂固件 | ImmortalWRT |
+|---|---|---|
+| `wan_net_stat.sh` 进程 | ✅ 运行中（每秒 ping 检测） | ❌ 不存在 |
+| `repacd` `wsplcd` `hyd` 等服务 | ✅ 存在（可在 init.d 中看到） | ❌ 不存在 |
+
+> 相关脚本已提取到仓库 `docs/stock-firmware/led/`，参见 [`nn6000-led-config.md`](nn6000-led-config.md) 获取详细分析。
 
 ---
 
