@@ -1,0 +1,21 @@
+#!/bin/sh /etc/rc.common
+# === 原厂固件 rclocal 启动框架 ===
+# 路径: /etc/init.d/any_rclocal
+# 启动优先级: START=98
+# 功能: 后台启动 /usr/sbin/anywifi/rclocal.d/ 下的所有脚本
+#       包括 wan_net_stat.sh（主 LED 控制器）等
+#
+# 来源: Linksys NN6000 原厂固件 (OpenWrt Chaos Calmer 15.05.1)
+
+START=98
+start(){
+mkdir -p /usr/sbin/anywifi/rclocal.d/ >/dev/null 2>&1 
+if [ ! -f /tmp/any_rclocal ];then
+        for i in /usr/sbin/anywifi/rclocal.d/*;do
+            if [ -f $i ];then
+                $i &
+            fi
+        done
+        echo "">/tmp/any_rclocal
+fi
+}
