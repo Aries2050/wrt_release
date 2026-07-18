@@ -62,19 +62,24 @@ glibc-run /path/to/glibc-binary [参数...]
 
 ### 诊断检查
 
+**设备端**（固件启动后）：
+
 ```bash
 # 检查系统 glibc 状态
-wrt_core/prebuilt_packages/install.sh check-glibc
+sh /etc/glibc-compat-check.sh
 
 # 分析指定二进制
-wrt_core/prebuilt_packages/install.sh check-glibc /path/to/binary
+sh /etc/glibc-compat-check.sh /path/to/binary
 ```
 
-或直接运行诊断脚本：
+**构建时**（编译环境中）：
 
 ```bash
+# 检查 glibc 兼容层注入状态
 sh wrt_core/patches/glibc-compat-check.sh
-sh wrt_core/patches/glibc-compat-check.sh /tmp/HDSentinel
+
+# 分析指定二进制
+sh wrt_core/patches/glibc-compat-check.sh /path/to/binary
 ```
 
 ### glibc-run 包装脚本

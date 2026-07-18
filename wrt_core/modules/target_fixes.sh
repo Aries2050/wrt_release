@@ -436,11 +436,8 @@ install_prebuilt_ipks() {
         elif command -v 7z &>/dev/null; then
             (cd "$tmp_dir" && 7z x "$ipk" -y -bso0 -bsp0) 2>/dev/null
             extracted=1
-        elif command -v ar &>/dev/null; then
-            (cd "$tmp_dir" && ar -x "$ipk") 2>/dev/null
-            extracted=1
         else
-            echo "  警告: 无法解压 ${name}（7zz/7z/ar 均不可用）" >&2
+            echo "  警告: 无法解压 ${name}（7zz/7z 均不可用）" >&2
             rm -rf "$tmp_dir"
             continue
         fi

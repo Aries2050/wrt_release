@@ -36,27 +36,32 @@ wrt_release/
 │   │   ├── 991_custom_settings       ← 自定义系统设置
 │   │   ├── 992_set-wifi-uci.sh       ← WiFi UCI 默认配置
 │   │   ├── 993_run-custom-boot-scripts ← ⭐ 刷机后自定义启动脚本（固定文件名 apply.sh）
+│   │   ├── 994_led_config            ← ⭐ RGB LED UCI 默认配置（注册到 LuCI + 自启 led-ctrl）
 │   │   ├── glibc-compat-check.sh    ← ⭐ glibc 兼容性诊断脚本
 │   │   ├── tempinfo                  ← 温度信息脚本
 │   │   ├── cpuusage                  ← CPU 使用率脚本
 │   │   ├── hnatusage                 ← 硬件 NAT 状态脚本
+│   │   ├── led-ctl                   ← ⭐ LED CLI 控制工具（set/blink/off/status/mode）
+│   │   ├── led-ctrl.init             ← ⭐ LED 联网状态指示灯服务（5 状态状态机）
 │   │   ├── nss_diag.sh              ← NSS 诊断脚本
 │   │   ├── pbr.user.cmcc / cmcc6     ← PBR 移动运营商路由
 │   │   └── smp_affinity              ← SMP 亲和性配置
 │   └── prebuilt_packages/            ← ⭐ 预编译包（本地定制）
 │       ├── install.sh
 │       ├── qbittorrent.conf
+│       ├── hdsentinel/                    ← HDSentinel 本地回退包
 │       ├── lucky_2.27.2_Linux_arm64_wanji.tar.gz
 │       └── lucky_2.27.2_Linux_x86_64_wanji.tar.gz
 ├── scripts/                          ← ⭐ 设备端运行时脚本
 │   ├── install_glibc_compat.sh       ← glibc 运行时安装脚本（设备上直接执行）
-│   └── check_stock_leds.sh           ← 原厂固件 LED 全面检查脚本
+│   ├── check_stock_leds.sh           ← ⭐ 原厂固件 LED 全面检查脚本
+│   └── check_stock_nn6000v2.sh       ← ⭐ NN6000v2 原厂固件特征检测脚本
 ├── docs/                             ← ⭐ 本文档目录（本地定制）
 │   ├── CHANGES.md                    ← 本地定制更改概览
 │   ├── GLIBC_COMPAT.md               ← glibc 兼容层说明
 │   ├── MAINTENANCE.md                ← 本文档
-│   ├── nn6000-led-config.md          ← NN6000 LED 配置分析（含 ImmortalWRT 差异与修复）
-│   ├── nn6000-stock-fingerprint.md   ← 原厂固件特征指纹（Web/SSH 快速识别）
+│   ├── nn6000-led-config.md          ← ⭐ NN6000 LED 配置分析（含 ImmortalWRT 差异与修复）
+│   ├── nn6000-stock-fingerprint.md   ← ⭐ 原厂固件特征指纹（Web/SSH 快速识别）
 │   └── stock-firmware/               ← ⭐ 从原厂固件提取的参考脚本
 │       └── led/
 │           ├── README.md             ← LED 控制架构总览
@@ -129,11 +134,13 @@ git push origin main
 | `patches/` 目录 | 上游重构 | 检查本地补丁是否仍需保留 |
 | `glibc-compat-check.sh` | 上游不存在 | 运行诊断脚本，确认文件存在 |
 | `modules/glibc_compat.sh` | 上游不存在 | 运行时 glibc 兼容层，确认 `update.sh` 中引用完好 |
+| `led-ctl` / `led-ctrl.init` / `994_led_config` | 上游不存在 | RGB LED 控制系统，确认 `install_led_control()` 注册完好 |
+| `993_run-custom-boot-scripts` | 上游不存在 | 自定义启动脚本，确认 `/etc/custom-boot.d/` 加入 sysupgrade.conf |
 
 ### 合并后检查清单
 
 - [ ] `lan_addr` 是否仍为 `192.168.199.1`
-- [ ] 编译目标是否正确（仅编译亚瑟）
+- [ ] 编译目标是否正确（仅编译亚瑟和 NN6000v2）
 - [ ] `prebuilt_packages/` 是否仍然存在
 - [ ] `glibc-compat-check.sh` 是否存在
 - [ ] `modules/glibc_compat.sh` 是否在 `update.sh` 中正确引用
@@ -145,6 +152,13 @@ git push origin main
 - [ ] `docs/` 目录是否完整
 - [ ] CI 工作流是否正常
 - [ ] CI 环境是否安装 binutils 和 7zip（.github/workflows/）
+- [ ] `led-ctl`、`led-ctrl.init`、`994_led_config` 补丁是否存在
+- [ ] `install_led_control()` 是否在 `update.sh` 中正确注册
+- [ ] NN6000v2 配置是否有 `zram-swap`/`emmc-health`
+- [ ] `993_run-custom-boot-scripts` 补丁是否存在
+- [ ] `scripts/check_stock_leds.sh` 是否存在
+- [ ] `docs/stock-firmware/` 参考脚本是否完整
+- [ ] `docs/` 目录无重复/冲突条目
 
 ## 添加新设备
 
@@ -173,7 +187,6 @@ git push origin main
 ```
 
 已在以下文件中使用此标记：
-- `wrt_core/deconfig/glibc.config`
 - `wrt_core/patches/glibc-compat-check.sh`
 - `wrt_core/prebuilt_packages/install.sh`
 - `wrt_core/prebuilt_packages/qbittorrent.conf`
