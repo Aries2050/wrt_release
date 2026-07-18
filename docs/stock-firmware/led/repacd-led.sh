@@ -10,7 +10,7 @@
 #
 # 当前状态: repacd 被禁用 (Enable=0)，此库未加载。
 #
-# 来源: Linksys NN6000 原厂固件 (OpenWrt Chaos Calmer 15.05.1)
+# 来源: Link NN6000 原厂固件 (OpenWrt Chaos Calmer 15.05.1)
 # Copyright (c) 2015 Qualcomm Atheros, Inc.
 
 . /lib/functions.sh

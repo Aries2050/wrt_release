@@ -1,6 +1,6 @@
 # 原厂固件 LED 控制脚本
 
-> 提取自 Linksys NN6000 原厂固件 (OpenWrt Chaos Calmer 15.05.1)
+> 提取自 Link NN6000 原厂固件 (OpenWrt Chaos Calmer 15.05.1)
 > 提取日期: 2026-07-19
 
 ## 文件清单

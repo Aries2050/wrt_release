@@ -5,7 +5,7 @@
 # 功能: 后台启动 /usr/sbin/anywifi/rclocal.d/ 下的所有脚本
 #       包括 wan_net_stat.sh（主 LED 控制器）等
 #
-# 来源: Linksys NN6000 原厂固件 (OpenWrt Chaos Calmer 15.05.1)
+# 来源: Link NN6000 原厂固件 (OpenWrt Chaos Calmer 15.05.1)
 
 START=98
 start(){

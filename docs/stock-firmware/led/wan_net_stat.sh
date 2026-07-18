@@ -12,7 +12,7 @@
 #   - 此脚本每隔 1 秒覆盖一次 LED 状态，手动写入会立即被覆盖
 #   - 测试前需 kill $(pgrep wan_net_stat)
 #
-# 来源: Linksys NN6000 原厂固件 (OpenWrt Chaos Calmer 15.05.1)
+# 来源: Link NN6000 原厂固件 (OpenWrt Chaos Calmer 15.05.1)
 
 if [ -e "/var/run/${0##*/}.pid" ] ;then
         if [ -e "/proc/$(cat /var/run/${0##*/}.pid)" ];then

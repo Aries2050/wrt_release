@@ -1,6 +1,6 @@
 # NN6000 原厂固件特征指纹
 
-> **用途**: 通过远程或本地手段快速判断一台 NN6000 设备是否运行原厂固件（基于 OpenWrt Chaos Calmer 15.05.1 的 Linksys/ZBT 定制固件）。
+> **用途**: 通过远程或本地手段快速判断一台 NN6000 设备是否运行原厂固件（基于 OpenWrt Chaos Calmer 15.05.1 的 ZBT 定制固件）。
 > **适用对象**: 与 ImmortalWRT 的固件识别区分。
 
 ---
@@ -185,7 +185,7 @@ fi
 | SSH | LED 命名 | `led_red` 风格 | ⭐⭐⭐ |
 | SSH | DTS LED 节点 | `led@50` 等 GPIO 编号 | ⭐⭐⭐ |
 | SSH | GPIO flags | `0x01` (ACTIVE_LOW) | ⭐⭐⭐ |
-| SSH | Linksys 服务 | `repacd` `wsplcd` 等 | ⭐⭐⭐ |
+| SSH | Qualcomm WHC 服务 | `repacd` `wsplcd` 等 | ⭐⭐⭐ |
 
 ### 4.2 LED 行为特征
 

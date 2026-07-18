@@ -11,7 +11,7 @@
 #      - CAP 模式（port 2 有链接）: 从 ROM 恢复 wan_net_stat.sh，运行 CAP 配置
 #      - RE 模式（port 2 无链接）: 删除 wan_net_stat.sh，运行 RE 配置
 #
-# 来源: Linksys NN6000 原厂固件 (OpenWrt Chaos Calmer 15.05.1)
+# 来源: Link NN6000 原厂固件 (OpenWrt Chaos Calmer 15.05.1)
 # 完整文件包含 WPS 和 SON 逻辑，此处仅保留 LED 控制部分
 
 if [ "$ACTION" = "pressed" -a "$BUTTON" = "#wps" ]; then

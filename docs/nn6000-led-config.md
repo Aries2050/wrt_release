@@ -1,4 +1,4 @@
-# Linksys NN6000 LED 配置分析
+# Link NN6000 LED 配置分析
 
 > **硬件平台**: Qualcomm IPQ6018/IPQ6000
 > **适用固件**: 原厂 Chaos Calmer 15.05.1 / ImmortalWRT SNAPSHOT

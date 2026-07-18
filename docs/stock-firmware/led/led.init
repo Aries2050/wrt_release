@@ -7,7 +7,7 @@
 # 原厂固件中 /etc/config/system 无 config led 段，此脚本无实际操作。
 # 此处保留以供参考。
 #
-# 来源: Linksys NN6000 原厂固件 (OpenWrt Chaos Calmer 15.05.1)
+# 来源: Link NN6000 原厂固件 (OpenWrt Chaos Calmer 15.05.1)
 # Copyright (C) 2008 OpenWrt.org
 
 START=96
