@@ -102,64 +102,78 @@ update_affinity_script() {
 
 
 fix_nn6000_led_label() {
-    # 修正 NN6000 DTS 节点名称与标签，使其对应物理 LED 实际颜色。
+    # 修正 NN6000 DTS 中 GPIO 极性标志，使其匹配低电平有效（ACTIVE_LOW）的 LED 硬件。
     #
-    # 实测物理映射:
-    #   GPIO 50 → 绿灯, GPIO 70 → 红灯, GPIO 69 → 黄灯
-    # DTS 原命名:
-    #   status-red   (GPIO 50, label="red:status")   → 实际是绿灯
-    #   status-green (GPIO 70, label="green:status") → 实际是红灯
-    #   status-blue  (GPIO 69, label="blue:status")  → 实际是黄灯
+    # 经 2026-07-19 在原厂固件和 ImmortalWRT 上交叉验证确认:
+    #   GPIO 50 → 🔴 红 (status-red)
+    #   GPIO 70 → 🟢 绿 (status-green)
+    #   GPIO 69 → 🔵 蓝 (status-blue)
     #
-    # 修复: 重命名节点和标签以匹配实际颜色:
-    #   status-red   → status-green,   label "red:status"   → "green:status"
-    #   status-green → status-red,     label "green:status" → "red:status"
-    #   status-blue  → status-yellow,  label "blue:status"  → "yellow:status"
-    local dts_dir="$BUILD_DIR/target/linux/qualcommax/files-6.18/arch/arm64/boot/dts/qcom"
-    local dts_file
+    # DTS 标签与物理颜色一致，不存在标签反置问题。
+    # 真实问题: ImmortalWRT DTS 中 gpios 的 flags 为 GPIO_ACTIVE_HIGH (0x00)，
+    # 但硬件为低电平有效（common anode），应使用 GPIO_ACTIVE_LOW (0x01)。
+    #
+    # 修复: 将 status-red/status-green/status-blue 的 gpios flags 从
+    #       GPIO_ACTIVE_HIGH (0) 改为 GPIO_ACTIVE_LOW (1)
+    #
+    # DTS 格式示例:
+    #   修复前: gpios = <&tlmm 50 GPIO_ACTIVE_HIGH>;
+    #   修复后: gpios = <&tlmm 50 GPIO_ACTIVE_LOW>;
+    local dts_dir dts_file
 
-    if [ ! -d "$dts_dir" ]; then
+    # 查找 DTS 目录: 优先 files-6.18 内核补丁目录, 其次上游 dts/ 目录
+    for dir in \
+        "$BUILD_DIR/target/linux/qualcommax/files-6.18/arch/arm64/boot/dts/qcom" \
+        "$BUILD_DIR/target/linux/qualcommax/dts"; do
+        if [ -d "$dir" ]; then
+            dts_dir="$dir"
+            break
+        fi
+    done
+
+    if [ -z "$dts_dir" ]; then
         dts_dir=$(find "$BUILD_DIR/target/linux/qualcommax" -path "*/boot/dts/qcom" -type d 2>/dev/null | head -1)
+    fi
+    if [ -z "$dts_dir" ]; then
+        dts_dir=$(find "$BUILD_DIR/target/linux/qualcommax" -maxdepth 3 -type d -name "dts" 2>/dev/null | head -1)
     fi
 
     if [ -z "$dts_dir" ] || [ ! -d "$dts_dir" ]; then
-        echo "警告: 未找到 Qualcommax DTS 目录，跳过 LED 标签修正" >&2
+        echo "警告: 未找到 Qualcommax DTS 目录，跳过 LED GPIO 极性修正" >&2
         return
     fi
 
     dts_file=$(grep -rl "status-red" "$dts_dir" 2>/dev/null | head -1)
     if [ -z "$dts_file" ]; then
-        echo "警告: 未找到包含 status-red 的 DTS 文件，跳过 LED 标签修正" >&2
+        echo "警告: 未找到包含 status-red 的 DTS 文件，跳过 LED GPIO 极性修正" >&2
         return
     fi
 
     echo "发现 NN6000 DTS 文件: $dts_file"
 
-    # 1. status-red ↔ status-green (交换节点名和标签)
-    # 暂存 status-red 内容, 原地改为 status-green
-    sed -i '/status-red {/,/};/{
-        /label/s/red:status/green:status/
-    }' "$dts_file"
-    sed -i 's/status-red {/status-green {/' "$dts_file"
-    sed -i '/status-green\/name/s/status-red/status-green/' "$dts_file"
+    local fixed=0
 
-    # 暂存 status-green 内容, 原地改为 status-red
-    sed -i '/status-green {/,/};/{
-        /label/s/green:status/red:status/
-    }' "$dts_file"
-    sed -i 's/status-green {/RENAMED_NODE_PLACEHOLDER {/; s/status-green {/status-red {/' "$dts_file"
-    sed -i 's/RENAMED_NODE_PLACEHOLDER/status-green/'
-    sed -i '/status-red\/name/s/status-green/status-red/' "$dts_file"
+    # 将 status-red/status-green/status-blue 的 GPIO flags 从 ACTIVE_HIGH 改为 ACTIVE_LOW
+    for node in status-red status-green status-blue; do
+        if grep -q "$node" "$dts_file"; then
+            # 匹配 DTS 中 gpios 属性的两种常见写法:
+            #   宏定义: gpios = <&tlmm 50 GPIO_ACTIVE_HIGH>;
+            #   数值:   gpios = <&tlmm 50 0>;
+            # 仅修改 flags 值（最后一个数字/宏），不改动 GPIO 编号
+            sed -i "/$node {/,/};/{
+                /gpios =/s/GPIO_ACTIVE_HIGH/GPIO_ACTIVE_LOW/g
+                /gpios =/s/ [0-9]\+>$/ 1>/
+            }" "$dts_file"
+            echo "  已修正 $node GPIO flags: ACTIVE_HIGH → ACTIVE_LOW"
+            fixed=1
+        fi
+    done
 
-    # 2. status-blue → status-yellow
-    sed -i '/status-blue {/,/};/{
-        /label/s/blue:status/yellow:status/
-    }' "$dts_file"
-    sed -i 's/status-blue {/status-yellow {/' "$dts_file"
-    sed -i '/status-yellow\/name/s/status-blue/status-yellow/' "$dts_file"
-
-    echo "已重命名 NN6000 LED 节点: status-red↔status-green, status-blue→status-yellow"
-    echo "  label: red:status→green:status, green:status→red:status, blue:status→yellow:status"
+    if [ "$fixed" -eq 1 ]; then
+        echo "完成: NN6000 LED GPIO 极性已从 ACTIVE_HIGH 修正为 ACTIVE_LOW"
+    else
+        echo "警告: 未找到需要修正的 LED 节点" >&2
+    fi
 }
 
 

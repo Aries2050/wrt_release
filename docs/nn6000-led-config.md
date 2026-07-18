@@ -1,164 +1,328 @@
-# Linksys NN6000 LED 配置分析与修复
+# Linksys NN6000 LED 配置分析
 
-> **适用固件**: ImmortalWRT SNAPSHOT (Kernel 6.12+) / OpenWrt Chaos Calmer 15.05.1
 > **硬件平台**: Qualcomm IPQ6018/IPQ6000
-> **最后更新**: 2026-07-18
+> **适用固件**: 原厂 Chaos Calmer 15.05.1 / ImmortalWRT SNAPSHOT
+> **最后更新**: 2026-07-19
 
 ---
 
 ## 1. 硬件 LED 概述
 
-NN6000 前面板有 **3 色状态指示灯**（红/绿/蓝/黄混色）及 2 个 Wi-Fi 指示灯，由 GPIO 驱动。
+NN6000 前面板有一颗 **RGB 三色状态指示灯**（红/绿/蓝），通过混色可显示琥珀色。
+另有 2 个 Wi-Fi 指示灯（2.4G/5G，位于机壳内部，外观不可见）和 1 个 eMMC 活动指示灯。
 
-### 1.1 GPIO 映射
+所有状态灯由 GPIO 通过 `leds-gpio` 内核模块驱动。
 
-| sysfs 名称 (ImmortalWRT) | sysfs 名称 (Chaos Calmer) | GPIO | 有效电平 | 物理颜色 |
+### 1.1 GPIO 映射表
+
+以下映射经**两个固件分别逐灯实测交叉验证**确认：
+
+| GPIO | sysfs (原厂) | sysfs (ImmortalWRT) | 硬件驱动方式 | **物理颜色** |
 |---|---|---|---|---|
-| `red:status` | `led_red` | GPIO 50 | 低电平 | 🔴 **红** (ImmortalWRT 中实际为绿, 见下方说明) |
-| `green:status` | `led_green` | GPIO 70 | 低电平 | 🟢 **绿** (ImmortalWRT 中实际为红) |
-| `blue:status` | `led_blue` | GPIO 69 | 低电平 | 🔵 **蓝** (ImmortalWRT 中实际为黄) |
-| — | `led_2g` | GPIO 37 | 高电平 | 2.4GHz Wi-Fi |
-| — | `led_5g` | GPIO 35 | 高电平 | 5GHz Wi-Fi |
-| `mmc0::` | `mmc0::` | — | — | eMMC 读写活动 |
+| 50 | `led_red` | `red:status` | 低电平有效 | 🔴 **红** |
+| 70 | `led_green` | `green:status` | 低电平有效 | 🟢 **绿** |
+| 69 | `led_blue` | `blue:status` | 低电平有效 | 🔵 **蓝** |
+| 37 | `led_2g` | — | 高电平有效 | 2.4G Wi-Fi（壳内）|
+| 35 | `led_5g` | — | 高电平有效 | 5G Wi-Fi（壳内）|
+| — | `mmc0::` | `mmc0::` | — | eMMC 读写活动 |
 
-> GPIO 控制器: `1000000.pinctrl` (80 个 GPIO 引脚)
+> **验证方法（2026-07-18/19）：**
+>
+> 1. 原厂固件：先 kill 自动恢复进程 `wan_net_stat.sh`，然后用后台循环锁定单灯状态，
+>    排除干扰后逐一点亮确认颜色。
+> 2. ImmortalWRT：利用其极性配置错误的特性（`brightness` 值反相），
+>    通过写入反相值确认每个 sysfs 节点对应的物理 LED。
 
 ### 1.2 DTS 默认状态
 
-| LED | `default-state` | `linux,default-trigger` |
+| sysfs 节点 | `default-state` | 说明 |
 |---|---|---|
-| GPIO 50 (red) | `on` | — |
-| GPIO 70 (green) | `off` | — |
-| GPIO 69 (blue) | `off` | — |
-| GPIO 37 (2g) | `off` | `led_2g` (非标准) |
-| GPIO 35 (5g) | `off` | `led_5g` (非标准) |
+| `led_red` / `red:status` | `on` | 上电默认点亮（电源指示） |
+| `led_green` / `green:status` | `off` | 默认熄灭，由上层应用控制 |
+| `led_blue` / `blue:status` | `off` | 默认熄灭，由上层应用控制 |
+| `led_2g` | `off` | 默认熄灭 |
+| `led_5g` | `off` | 默认熄灭 |
+| `mmc0::` | — | 由 mmc0 事件驱动 |
 
 ---
 
-## 2. 软件架构
+## 2. 原厂固件灯光控制逻辑
+
+原厂固件（OpenWrt Chaos Calmer 15.05.1 定制版）的灯光控制由三层组成。
+
+### 2.1 控制架构总览
 
 ```
-┌──────────────────────────────────────────────┐
-│  上层应用                                     │
-│  repacd (Linksys RE/AC 守护进程)              │
-│  17 种 LEDState 模式管理红/绿双色 LED          │
-│  配置文件: /etc/config/repacd                 │
-├──────────────────────────────────────────────┤
-│  中间层                                       │
-│  /etc/init.d/led (OpenWrt 标准 LED 框架)      │
-│  config_load system → config_foreach load_led │
-├──────────────────────────────────────────────┤
-│  底层                                         │
-│  leds-gpio 内核模块 + Device Tree             │
-│  /sys/class/leds/* sysfs 接口                 │
-└──────────────────────────────────────────────┘
+开机上电
+  │
+  ├── DTS 默认: led_red = default-state=on → 红色指示灯亮
+  │
+  ├── /etc/init.d/led (START=96)
+  │    读取 /etc/config/system 中的 config led 段
+  │    → 该文件无 config led → 无实际操作
+  │
+  └── /etc/init.d/any_rclocal (START=98)
+        for i in /usr/sbin/anywifi/rclocal.d/*; do $i &; done
+        │
+        ├── wan_net_stat.sh  ← ★ 主控制器
+        ├── S99_os_netstat   ← 4G 模块 LED 管理
+        ├── watchsystem_of_dog.sh ← 网络看门狗
+        └── ...
 ```
 
-### 2.1 ImmortalWRT vs Chaos Calmer 差异
+### 2.2 主控制器：`wan_net_stat.sh`
 
-| 项目 | Chaos Calmer (4.4.60) | ImmortalWRT (6.12.71) |
-|---|---|---|
-| **LED 命名** | `led_red`, `led_green`, `led_blue` | `red:status`, `green:status`, `blue:status` |
-| **亮度范围** | 0-255 (PWM) | 0/1 (二进制开关) |
-| **WiFi LED** | 独立 `led_2g`/`led_5g` | 无独立 WiFi LED |
-| **WiFi 触发器** | 不支持 | 支持 `phy0rx/phy0tx/phy0radio` |
-| **DTS 默认** | `led_red` `default-state=on` | 三色均无默认触发器 |
+这是原厂固件中唯一活跃的 LED 控制进程。它每隔 **1 秒** 检测 WAN 连通性并切换红/蓝灯。
 
-### 2.2 repacd LEDState 状态机
+**工作流程：**
 
-`repacd` (Range Extender / AP Control Daemon) 管理 17 种状态模式，使用 `led_0`/`led_1` 抽象（硬编码映射到红/绿 LED）：
+```
+每 1 秒循环:
+  ├── ping baidu.com (3 次)
+  │     ├── 成功 → led_red=灭, led_blue=亮 → 🔵 蓝灯
+  │     └── 失败 → ping 114.114.114.114 (3 次)
+  │           ├── 成功 → led_red=灭, led_blue=亮 → 🔵 蓝灯
+  │           └── 失败 → led_red=亮, led_blue=灭 → 🔴 红灯
+  └── sleep 1
+```
 
-| LEDState 模式 | led_0 (红) | led_1 (绿) | 用户可见 |
+**实际代码（`wan_net_stat.sh`）：**
+
+```bash
+while [ 1 ]; do
+    ping -c 3 -w 3 -W 3 $detect_host1        # baidu.com
+    if [ "$?" == "1" ]; then
+        ping -c 3 -w 3 -W 3 $detect_host2    # 114.114.114.114
+        if [ "$?" == "1" ]; then              # 两地址均不通
+            echo 0 > /sys/class/leds/led_blue/brightness
+            echo none > /sys/class/leds/led_blue/trigger
+            echo 1 > /sys/class/leds/led_red/brightness
+            echo default-on > /sys/class/leds/led_red/trigger
+        else                                  # 仅 host2 通
+            echo 0 > /sys/class/leds/led_red/brightness
+            echo none > /sys/class/leds/led_red/trigger
+            echo 1 > /sys/class/leds/led_blue/brightness
+            echo default-on > /sys/class/leds/led_blue/trigger
+        fi
+    else                                      # host1 通
+        echo 0 > /sys/class/leds/led_red/brightness
+        echo none > /sys/class/leds/led_red/trigger
+        echo 1 > /sys/class/leds/led_blue/brightness
+        echo default-on > /sys/class/leds/led_blue/trigger
+    fi
+    sleep 1
+done
+```
+
+> **⚠️ 注意**：此脚本每隔 1 秒执行一次，会覆盖所有手动写入的 brightness 值。
+> 如需手动测试 LED，必须先 kill 此进程或用后台循环持续锁定。
+
+**灯光含义（当前配置）：**
+
+| 前面板颜色 | 含义 |
+|---|---|
+| 🔴 红灯常亮 | 网络不通（两个 ping 目标均不可达） |
+| 🔵 蓝灯常亮 | 网络连通（至少一个 ping 目标可达） |
+
+### 2.3 4G 模块 LED 管理：`S99_os_netstat`
+
+`S99_os_netstat` 通过 UCI 配置 `anyos.led.*` 控制 4G 模块相关的指示灯：
+
+| UCI 配置项 | 用途 |
+|---|---|
+| `anyos.led.internet_led_name` | 上网状态指示灯（设为 `default-on` / `none`） |
+| `anyos.led.module_led_name` | 4G 模块指示灯（使用 netdev trigger） |
+| `anyos.led.module_sim_led_name` | SIM 卡状态指示灯 |
+| `anyos.led.module_rssi_name` | 4G 信号强度指示灯 |
+
+**当前状态：上述 UCI 配置全部为空，该脚本的 LED 功能未启用。**
+
+### 2.4 repacd LED 状态管理
+
+`repacd`（Range Extender / AP Control Daemon）在 **RE（中继）模式**下管理 17 种 LED 状态模式。
+它使用抽象名称 `led_0` / `led_1` 表示两个 LED，通过 `/etc/config/repacd` 配置。
+
+**当前状态：`option Enable '0'`，此功能被禁用。**
+
+| LEDState 模式 | `led_0` | `led_1` | 用户可见 |
 |---|---|---|---|
 | `Reset` | off | off | 全灭 |
-| `NotAssociated` | timer 500/500ms | off | 红灯慢闪 |
-| `AutoConfigInProgress` | timer 250/250ms | off | 红灯快闪 |
-| `Measuring` | timer 250/250ms | timer 250/250ms | 红绿交替快闪 |
-| `WPSTimeout` | timer 2000/1000ms | off | 红灯长闪 |
-| `AssocTimeout` | timer 5000/1000ms | off | 红灯极长闪 |
+| `NotAssociated` | 500ms 闪烁 | off | 红灯慢闪 |
+| `AutoConfigInProgress` | 250ms 闪烁 | off | 红灯快闪 |
+| `Measuring` | 250ms 闪烁 | 250ms 闪烁 | 红绿交替快闪 |
+| `WPSTimeout` | 2000ms 亮, 1000ms 灭 | off | 红灯长闪 |
 | `RE_MoveCloser` | on | off | 红灯常亮 |
 | `RE_MoveFarther` | off | on | 绿灯常亮 |
 | `RE_LocationSuitable` | on | on | 琥珀色 |
 | `RE_BackhaulGood` | on | on | 琥珀色 |
 | `RE_BackhaulFair` | on | off | 红灯常亮 |
 | `RE_BackhaulPoor` | off | on | 绿灯常亮 |
-| `RE_SwitchingBSTA` | timer 250/250ms | off | 红灯快闪 |
+| `RE_SwitchingBSTA` | 250ms 闪烁 | off | 红灯快闪 |
 | `InCAPMode` | on | on | 琥珀色 |
-| `CL_*` | 各种组合 | 各种组合 | 客户端模式指示 |
+
+### 2.5 WPS 按钮灯光影响
+
+按 WPS 按钮时，`/etc/hotplug.d/button/50-wps` 会：
+
+1. **kill** `wan_net_stat.sh`（停止自动检测）
+2. 熄灭所有 LED（红/绿/蓝）
+3. 设置 **蓝色 LED 以 1 秒周期闪烁**
+4. 根据网口状态决定后续模式：
+   - **CAP 模式**（网口有链接）：从 ROM 恢复 `wan_net_stat.sh`，LED 恢复为红/蓝指示灯
+   - **RE 模式**（网口无链接）：**删除** `wan_net_stat.sh`，LED 由 `repacd` 管理
 
 ---
 
-## 3. 已知问题: ImmortalWRT DTS 标签反了
+## 3. ImmortalWRT 差异与修复
 
-### 3.1 问题现象
+### 3.1 LED 命名差异
 
-通过逐灯测试确认，ImmortalWRT 固件中 DTS 标签与实际物理颜色不符：
+| 物理 LED | 原厂 sysfs | ImmortalWRT sysfs |
+|---|---|---|
+| 🔴 红 | `led_red` | `red:status` |
+| 🟢 绿 | `led_green` | `green:status` |
+| 🔵 蓝 | `led_blue` | `blue:status` |
+
+**两个固件的 sysfs 名称都正确对应物理颜色，不存在标签错位。**
+
+### 3.2 GPIO 极性差异（真实问题）
+
+两个固件的 GPIO 编号完全相同（50/70/69），但 DTS 中 `gpios` 属性的 **polarity flags 不同**：
+
+| 固件 | GPIO flags | 含义 |
+|---|---|---|
+| 原厂 | `0x01` | `GPIO_ACTIVE_LOW`（低电平有效）✅ |
+| ImmortalWRT | `0x00` | `GPIO_ACTIVE_HIGH`（高电平有效）❌ |
+
+LED 硬件为**低电平有效**（common anode 共阳极接法，GPIO 灌电流时 LED 亮）：
+
+| flags 配置 | `brightness=1` 时 GPIO 电平 | 物理 LED 状态 |
+|---|---|---|
+| `ACTIVE_LOW`（正确） | 低电平 (LOW) | ✅ **点亮** |
+| `ACTIVE_HIGH`（错误） | 高电平 (HIGH) | ❌ **熄灭** |
+
+**后果：** 在 ImmortalWRT 中，由于 flags 错误，`brightness` 值与实际灯光状态相反：
+
+| 写入值 | 预期行为 | 实际结果（ImmortalWRT） |
+|---|---|---|
+| `brightness=1` | 亮 | ❌ 灭 |
+| `brightness=0` | 灭 | ❌ 亮 |
+
+### 3.3 上游源码提交
+
+上游 DTS 文件：`target/linux/qualcommax/dts/ipq6000-link.dtsi`
+
+- **openwrt/openwrt：** https://github.com/openwrt/openwrt/blob/main/target/linux/qualcommax/dts/ipq6000-link.dtsi
+- **VIKINGYFY/immortalwrt：** https://github.com/VIKINGYFY/immortalwrt/blob/main/target/linux/qualcommax/dts/ipq6000-link.dtsi
+
+首次引入 NN6000 支持的提交（含错误的 `GPIO_ACTIVE_HIGH`）：
 
 ```
-sysfs 节点名      GPIO    写入后用户看到的颜色
-───────────────────────────────────────────
-red:status       GPIO 50  →  🟢 绿色
-green:status     GPIO 70  →  🔴 红色
-blue:status      GPIO 69  →  🟡 黄色
+提交: 0c068c6c2f7e6cf9f30a3f2f4161e67a9f919b65
+作者: firedevel
+提交者: Robert Marko <robimarko@gmail.com>
+日期: 2026-03-21
+描述: qualcommax: ipq60xx: add Link NN6000v1/v2 support
+URL: https://github.com/openwrt/openwrt/commit/0c068c6c2f7e6cf9f30a3f2f4161e67a9f919b65
 ```
 
-### 3.2 修复方案
+### 3.4 编译时修复
 
-已在构建系统中添加编译时自动修复 (`wrt_core/modules/target_fixes.sh` → `fix_nn6000_led_label()`)，使用 awk 脚本在构建过程中重命名 DTS 节点和标签：
+构建系统中的 `fix_nn6000_led_label()` 函数（`wrt_core/modules/target_fixes.sh`）
+在编译时修正 DTS 中的 GPIO polarity flags：
 
-| 编译前 | 编译后 | GPIO | 物理颜色 |
-|---|---|---|---|
-| `status-red { label = "red:status"; }` | → `status-green { label = "green:status"; }` | GPIO 50 | 🟢 绿 |
-| `status-green { label = "green:status"; }` | → `status-red { label = "red:status"; }` | GPIO 70 | 🔴 红 |
-| `status-blue { label = "blue:status"; }` | → `status-yellow { label = "yellow:status"; }` | GPIO 69 | 🟡 黄 |
+**修复内容（`ipq6000-link.dtsi`）：**
 
-修复后刷机，sysfs 名称将正确对应实际颜色。
+```dts
+// 修复前（三个节点的 flags 均为 GPIO_ACTIVE_HIGH 0x00）
+led_status_red: status-red {
+    gpios = <&tlmm 50 GPIO_ACTIVE_HIGH>;  // ← 错误
+};
+led_status_green: status-green {
+    gpios = <&tlmm 70 GPIO_ACTIVE_HIGH>;  // ← 错误
+};
+led_status_blue: status-blue {
+    gpios = <&tlmm 69 GPIO_ACTIVE_HIGH>;  // ← 错误
+};
+
+// 修复后（改为 GPIO_ACTIVE_LOW 0x01）
+led_status_red: status-red {
+    gpios = <&tlmm 50 GPIO_ACTIVE_LOW>;   // ✓ 正确
+};
+led_status_green: status-green {
+    gpios = <&tlmm 70 GPIO_ACTIVE_LOW>;   // ✓ 正确
+};
+led_status_blue: status-blue {
+    gpios = <&tlmm 69 GPIO_ACTIVE_LOW>;   // ✓ 正确
+};
+```
+
+修复后，`brightness=1` 正确点亮对应颜色的 LED。
+
+### 3.5 ImmortalWRT 无自动恢复
+
+### 3.4 ImmortalWRT 无自动恢复
+
+与原厂固件不同，ImmortalWRT **没有** `wan_net_stat.sh` 之类的周期性 LED 覆盖进程。
+手动写入 brightness 值后会一直保持，直到下次写入或重启。
 
 ---
 
 ## 4. 手动控制 LED
 
-### 4.1 临时控制 (重启失效)
+### 4.1 原厂固件（Chaos Calmer）
 
 ```bash
-# ImmortalWRT
-echo 1 > /sys/class/leds/red:status/brightness   # 开红灯
-echo 0 > /sys/class/leds/red:status/brightness   # 关红灯
+# 注意: wan_net_stat.sh 会每秒覆盖，需先 kill
+kill $(pgrep wan_net_stat)
 
-# Chaos Calmer
-echo default-on > /sys/class/leds/led_red/trigger
-echo 255 > /sys/class/leds/led_red/brightness    # 开红灯 (PWM)
-echo none > /sys/class/leds/led_red/trigger
-echo 0 > /sys/class/leds/led_red/brightness      # 关红灯
+# 开红灯 (PWM 最大值 255)
+echo 255 > /sys/class/leds/led_red/brightness
+# 关红灯
+echo 0 > /sys/class/leds/led_red/brightness
+
+# 开绿灯
+echo 255 > /sys/class/leds/led_green/brightness
+# 开蓝灯
+echo 255 > /sys/class/leds/led_blue/brightness
 ```
 
-### 4.2 持久化配置
+### 4.2 ImmortalWRT（修复前）
 
-在 `/etc/config/system` 中添加:
+由于 GPIO flags 错误的临时绕过方法（`brightness` 值反相）：
 
-```uci
-config led 'led_red'
-    option name 'Red LED'
-    option sysfs 'red:status'        # ImmortalWRT
-    option trigger 'default-on'
-    option default '0'
+```bash
+# "开"红灯（实际写入反相值 0）
+echo 0 > /sys/class/leds/red:status/brightness
+# "关"红灯
+echo 1 > /sys/class/leds/red:status/brightness
 
-config led 'led_green'
-    option name 'Green LED'
-    option sysfs 'green:status'
-    option trigger 'default-on'
-    option default '1'
+# "开"绿灯
+echo 0 > /sys/class/leds/green:status/brightness
+# "开"蓝灯
+echo 0 > /sys/class/leds/blue:status/brightness
 ```
 
-### 4.3 利用 custom-boot 框架
+### 4.3 ImmortalWRT（修复 flags 后）
 
-设备支持 `/etc/custom-boot.d/` 开机自启脚本:
+修复后 `brightness=1` 表示亮，与常规行为一致：
+
+```bash
+# 开红灯
+echo 1 > /sys/class/leds/red:status/brightness
+# 关红灯
+echo 0 > /sys/class/leds/red:status/brightness
+```
+
+### 4.4 利用 custom-boot 框架持久化
+
+设备支持 `/etc/custom-boot.d/` 开机自启脚本：
 
 ```bash
 mkdir -p /etc/custom-boot.d/01-led-fix
 cat > /etc/custom-boot.d/01-led-fix/apply.sh << 'EOF'
 #!/bin/sh
-# 绿灯常亮
+# 绿灯常亮（适用于 flags 已修复的 ImmortalWRT）
 echo 1 > /sys/class/leds/green:status/brightness
 echo 0 > /sys/class/leds/red:status/brightness
 EOF
@@ -169,24 +333,49 @@ chmod +x /etc/custom-boot.d/01-led-fix/apply.sh
 
 ## 5. 相关文件清单
 
+### 5.1 sysfs 接口
+
+| 路径 | 说明 |
+|---|---|
+| `/sys/class/leds/led_red/brightness` | 红灯亮度（原厂 0-255） |
+| `/sys/class/leds/led_green/brightness` | 绿灯亮度 |
+| `/sys/class/leds/led_blue/brightness` | 蓝灯亮度 |
+| `/sys/class/leds/*/trigger` | LED 触发器（none/timer/default-on/netdev） |
+
+### 5.2 原厂固件控制脚本
+
 | 文件 | 作用 |
 |---|---|
-| `/etc/modules.d/60-leds-gpio` | LED GPIO 内核模块 |
-| `/etc/init.d/led` | OpenWrt LED 初始化脚本 |
-| `/etc/config/system` | 系统配置 (可含 `config led`) |
-| `/etc/config/repacd` | Linksys RE/AC 守护进程配置 (含 17 种 LEDState) |
-| `/proc/device-tree/leds/` | 设备树 LED 节点 |
-| `/sys/class/leds/*/` | sysfs LED 控制接口 |
+| `/usr/sbin/anywifi/rclocal.d/wan_net_stat.sh` | ★ 主控制器，每秒 ping 切换红/蓝灯 |
+| `/usr/sbin/anywifi/rclocal.d/S99_os_netstat` | 4G 模块 LED 管理（UCI 未配置，未启用） |
+| `/etc/hotplug.d/button/50-wps` | WPS 按钮时 kill wan_net_stat.sh 并蓝灯闪烁 |
+| `/lib/functions/repacd-led.sh` | repacd LED 状态管理函数库 |
+| `/etc/init.d/repacd` | Range Extender 守护进程（当前禁用） |
+| `/etc/init.d/led` | OpenWrt 标准 LED 框架（无配置时无操作） |
+| `/etc/init.d/any_rclocal` | 启动 rclocal.d 目录下所有后台脚本 |
+
+### 5.3 配置文件
+
+| 文件 | 作用 |
+|---|---|
+| `/etc/config/repacd` | repacd LED 状态配置（17 种模式） |
+| `/etc/config/anyos` | 系统配置（含 LED 控制 UCI，当前为空） |
+| `/etc/config/anyos_netwatchdog` | 网络看门狗配置（ping 目标地址等） |
+| `/etc/config/system` | 系统配置（可含 config led 段） |
+
+### 5.4 设备树
+
+| 路径 | 说明 |
+|---|---|
+| `/proc/device-tree/leds/` | 设备树 LED 节点（仅 ImmortalWRT） |
+| `/sys/bus/platform/drivers/leds-gpio/soc:leds/of_node/` | DTS LED 节点（仅原厂固件） |
 
 ---
 
-## 6. 编译时 DTS 补丁参考
+## 6. 文档修订记录
 
-`target_fixes.sh` 中的 `fix_nn6000_led_label()` 使用 awk 直接在 DTS 源文件中交换 `status-red` 和 `status-green` 节点的全部内容（节点名、标签、GPIO 值），并将 `status-blue` 重命名为 `status-yellow`。
-
-如需手动验证或修改，可在构建树中找到 DTS 文件后执行:
-
-```bash
-# DTS 文件路径 (示例)
-# target/linux/qualcommax/files-6.18/arch/arm64/boot/dts/qcom/ipq6000-xxxx.dts
-```
+| 日期 | 修订内容 |
+|---|---|
+| 2026-07-19 | 重写全文。修正了错误结论（"标签反了"），更正为 GPIO 极性 flags 问题。
+| | 补充两个固件交叉验证的实测数据。增加原厂 `wan_net_stat.sh` 控制逻辑分析。 |
+| 2026-07-18 | 初版。包含有误的"标签反置"结论。 |
