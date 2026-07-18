@@ -261,8 +261,6 @@ led_status_blue: status-blue {
 
 ### 3.5 ImmortalWRT 无自动恢复
 
-### 3.4 ImmortalWRT 无自动恢复
-
 与原厂固件不同，ImmortalWRT **没有** `wan_net_stat.sh` 之类的周期性 LED 覆盖进程。
 手动写入 brightness 值后会一直保持，直到下次写入或重启。
 
@@ -344,15 +342,17 @@ chmod +x /etc/custom-boot.d/01-led-fix/apply.sh
 
 ### 5.2 原厂固件控制脚本
 
-| 文件 | 作用 |
-|---|---|
-| `/usr/sbin/anywifi/rclocal.d/wan_net_stat.sh` | ★ 主控制器，每秒 ping 切换红/蓝灯 |
-| `/usr/sbin/anywifi/rclocal.d/S99_os_netstat` | 4G 模块 LED 管理（UCI 未配置，未启用） |
-| `/etc/hotplug.d/button/50-wps` | WPS 按钮时 kill wan_net_stat.sh 并蓝灯闪烁 |
-| `/lib/functions/repacd-led.sh` | repacd LED 状态管理函数库 |
-| `/etc/init.d/repacd` | Range Extender 守护进程（当前禁用） |
-| `/etc/init.d/led` | OpenWrt 标准 LED 框架（无配置时无操作） |
-| `/etc/init.d/any_rclocal` | 启动 rclocal.d 目录下所有后台脚本 |
+原厂固件中的原始脚本已提取到仓库中，可直接参考：
+
+| 仓库路径 | 原始路径 | 作用 |
+|---|---|---|
+| `docs/stock-firmware/led/wan_net_stat.sh` | `/usr/sbin/anywifi/rclocal.d/wan_net_stat.sh` | ★ 主控制器，每秒 ping 切换红/蓝灯 |
+| `docs/stock-firmware/led/50-wps-hotplug.sh` | `/etc/hotplug.d/button/50-wps` | WPS 按钮时 kill wan_net_stat.sh 并蓝灯闪烁 |
+| `docs/stock-firmware/led/repacd-led.sh` | `/lib/functions/repacd-led.sh` | repacd LED 状态管理函数库 |
+| `docs/stock-firmware/led/led.init` | `/etc/init.d/led` | OpenWrt 标准 LED 框架（无配置时无操作） |
+| `docs/stock-firmware/led/any_rclocal.init` | `/etc/init.d/any_rclocal` | 启动 rclocal.d 目录下所有后台脚本 |
+| — | `/usr/sbin/anywifi/rclocal.d/S99_os_netstat` | 4G 模块 LED 管理（UCI 未配置，未启用） |
+| — | `/etc/init.d/repacd` | Range Extender 守护进程（当前禁用） |
 
 ### 5.3 配置文件
 
