@@ -193,6 +193,15 @@
 | 10MB~50MB/s | 100ms / 100ms | 200ms | 快闪 |
 | > 50MB/s | 50ms / 50ms | 100ms | 极速 |
 
+**修复记录：**
+
+| 修复 | 说明 |
+|------|------|
+| rc.common case 冲突 | 底部 `case ... *) . /etc/rc.common` 导致递归 source，服务无法启动。改为 `if [ "\$1" = "_daemon" ]; then daemon_loop; fi` |
+| brightness 值域 | `fix_nn6000_led_label` 修正为 ACTIVE_LOW 后 `max_brightness=1`（二进制开关），写入 `255` 被截断。全部改为 `1` |
+| timer trigger 重置 brightness | 切换到 timer trigger 时内核重置 brightness=0。操作顺序改为 none→亮度→timer→delay→再设亮度 |
+| DTS 搜索过宽 | `fix_nn6000_led_label` 中 `grep -rl status-red \| head -1` 搜到 ipq807x 的 DTS 而非 NN6000 的。改为优先 ipq60xx 子目录，次选排除 ipq807x |
+
 ## 与上游的差异标识
 
 本地独有文件和目录（上游不存在）：

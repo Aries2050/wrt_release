@@ -131,19 +131,53 @@ fix_nn6000_led_label() {
         fi
     done
 
-    if [ -z "$dts_dir" ]; then
-        dts_dir=$(find "$BUILD_DIR/target/linux/qualcommax" -path "*/boot/dts/qcom" -type d 2>/dev/null | head -1)
+    # 优先搜索 IPQ60xx 子目录下的 DTS 文件（NN6000 属于 IPQ60xx 平台）
+    # 按优先级查找：
+    #   1. link_nn6000v2 特定的 DTS 文件
+    #   2. ipq60xx 目录下的 DTS 文件
+    #   3. 其他目录中与 ipq60/ipq6018 相关的 DTS 文件
+    local dts_files_found=()
+    local target_dir
+
+    # 先找 ipq60xx 子目标下的 dts 目录
+    for dir in \
+        "$BUILD_DIR/target/linux/qualcommax/files-6.18/arch/arm64/boot/dts/qcom" \
+        "$BUILD_DIR/target/linux/qualcommax/dts"; do
+        if [ -d "$dir" ]; then
+            target_dir="$dir"
+            break
+        fi
+    done
+
+    if [ -z "$target_dir" ]; then
+        target_dir=$(find "$BUILD_DIR/target/linux/qualcommax" -path "*/boot/dts/qcom" -type d 2>/dev/null | head -1)
     fi
-    if [ -z "$dts_dir" ]; then
-        dts_dir=$(find "$BUILD_DIR/target/linux/qualcommax" -maxdepth 3 -type d -name "dts" 2>/dev/null | head -1)
+    if [ -z "$target_dir" ]; then
+        target_dir=$(find "$BUILD_DIR/target/linux/qualcommax" -maxdepth 3 -type d -name "dts" 2>/dev/null | head -1)
     fi
 
-    if [ -z "$dts_dir" ] || [ ! -d "$dts_dir" ]; then
+    if [ -z "$target_dir" ] || [ ! -d "$target_dir" ]; then
         echo "警告: 未找到 Qualcommax DTS 目录，跳过 LED GPIO 极性修正" >&2
         return
     fi
 
-    dts_file=$(grep -rl "status-red" "$dts_dir" 2>/dev/null | head -1)
+    # 优先找 ipq60xx 子目录下的 DTS
+    local ipq60_dir
+    ipq60_dir=$(find "$target_dir" -type d -name "ipq60*" 2>/dev/null | head -1)
+    if [ -n "$ipq60_dir" ]; then
+        dts_file=$(grep -rl "status-red" "$ipq60_dir" 2>/dev/null | head -1)
+    fi
+
+    # 没找到则在整个 DTS 目录中找，排除 ipq807x
+    if [ -z "$dts_file" ]; then
+        dts_file=$(grep -rl "status-red" "$target_dir" 2>/dev/null | grep -v "ipq807" | head -1)
+    fi
+
+    # 最后兜底：任何包含 status-red 的文件
+    if [ -z "$dts_file" ]; then
+        dts_file=$(grep -rl "status-red" "$target_dir" 2>/dev/null | head -1)
+    fi
+
     if [ -z "$dts_file" ]; then
         echo "警告: 未找到包含 status-red 的 DTS 文件，跳过 LED GPIO 极性修正" >&2
         return

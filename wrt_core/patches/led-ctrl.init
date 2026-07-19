@@ -69,44 +69,60 @@ _led_all_off() {
 
 _led_red_on() {
     _led_all_off
+    echo "none" > "$LED_RED/trigger" 2>/dev/null
+    echo 1 > "$LED_RED/brightness" 2>/dev/null
     echo "default-on" > "$LED_RED/trigger" 2>/dev/null
-    echo 255 > "$LED_RED/brightness" 2>/dev/null
+    echo 1 > "$LED_RED/brightness" 2>/dev/null
 }
 
 _led_yellow_blink() {
     local on_ms="${1:-300}" off_ms="${2:-300}"
     _led_all_off
+    # ⚠ 必须先设为 none→设亮度 1→再切 timer，因为 timer trigger 会重置 brightness=0
+    echo "none" > "$LED_RED/trigger" 2>/dev/null
+    echo 1 > "$LED_RED/brightness" 2>/dev/null
     echo "timer" > "$LED_RED/trigger" 2>/dev/null
     echo "$on_ms" > "$LED_RED/delay_on" 2>/dev/null
     echo "$off_ms" > "$LED_RED/delay_off" 2>/dev/null
-    echo 255 > "$LED_RED/brightness" 2>/dev/null
+    echo 1 > "$LED_RED/brightness" 2>/dev/null
+    echo "none" > "$LED_GREEN/trigger" 2>/dev/null
+    echo 1 > "$LED_GREEN/brightness" 2>/dev/null
     echo "timer" > "$LED_GREEN/trigger" 2>/dev/null
     echo "$on_ms" > "$LED_GREEN/delay_on" 2>/dev/null
     echo "$off_ms" > "$LED_GREEN/delay_off" 2>/dev/null
-    echo 255 > "$LED_GREEN/brightness" 2>/dev/null
+    echo 1 > "$LED_GREEN/brightness" 2>/dev/null
 }
 
 _led_yellow_on() {
     _led_all_off
+    echo "none" > "$LED_RED/trigger" 2>/dev/null
+    echo 1 > "$LED_RED/brightness" 2>/dev/null
     echo "default-on" > "$LED_RED/trigger" 2>/dev/null
-    echo 255 > "$LED_RED/brightness" 2>/dev/null
+    echo 1 > "$LED_RED/brightness" 2>/dev/null
+    echo "none" > "$LED_GREEN/trigger" 2>/dev/null
+    echo 1 > "$LED_GREEN/brightness" 2>/dev/null
     echo "default-on" > "$LED_GREEN/trigger" 2>/dev/null
-    echo 255 > "$LED_GREEN/brightness" 2>/dev/null
+    echo 1 > "$LED_GREEN/brightness" 2>/dev/null
 }
 
 _led_green_on() {
     _led_all_off
+    echo "none" > "$LED_GREEN/trigger" 2>/dev/null
+    echo 1 > "$LED_GREEN/brightness" 2>/dev/null
     echo "default-on" > "$LED_GREEN/trigger" 2>/dev/null
-    echo 255 > "$LED_GREEN/brightness" 2>/dev/null
+    echo 1 > "$LED_GREEN/brightness" 2>/dev/null
 }
 
 _led_green_blink() {
     local on_ms="${1:-500}" off_ms="${2:-500}"
     _led_all_off
+    # ⚠ timer trigger 会重置 brightness=0，必须先设亮度再切 trigger
+    echo "none" > "$LED_GREEN/trigger" 2>/dev/null
+    echo 1 > "$LED_GREEN/brightness" 2>/dev/null
     echo "timer" > "$LED_GREEN/trigger" 2>/dev/null
     echo "$on_ms" > "$LED_GREEN/delay_on" 2>/dev/null
     echo "$off_ms" > "$LED_GREEN/delay_off" 2>/dev/null
-    echo 255 > "$LED_GREEN/brightness" 2>/dev/null
+    echo 1 > "$LED_GREEN/brightness" 2>/dev/null
 }
 
 # ─── 流量速率检测 ───
@@ -242,9 +258,10 @@ _activity_loop() {
         prev_tx=$curr_tx
 
         # 读取亮灭间隔
-        read on_ms off_ms <<EOF
-$(_rate_to_blink "$rate")
-EOF
+        local blink_data
+        blink_data=$(_rate_to_blink "$rate")
+        on_ms=${blink_data% *}
+        off_ms=${blink_data#* }
 
         if [ "$on_ms" -eq 0 ]; then
             idle_count=$((idle_count + 1))
@@ -262,7 +279,7 @@ EOF
 
 start_service() {
     procd_open_instance
-    procd_set_param command /bin/sh "$0" daemon
+    procd_set_param command /bin/sh "$0" _daemon
     procd_set_param respawn 3600 5 0
     procd_set_param stdout 1
     procd_set_param stderr 1
@@ -284,21 +301,17 @@ reload_service() {
     _MODE=""
     # SIGHUP 触发检测
     local pid
-    pid=$(pgrep -f "^/bin/sh .*led-ctrl.*daemon" | head -1)
+    pid=$(pgrep -f "^/bin/sh .*led-ctrl.*_daemon" | head -1)
     [ -n "$pid" ] && kill -HUP "$pid" 2>/dev/null
 }
 
 # ═══════════════════════════════════════════
-# 入口
+# 入口：rc.common 不会执行到这里，只有直接执行时才进入
 # ═══════════════════════════════════════════
 
 trap 'reload_service' HUP
 
-case "${1:-}" in
-    daemon)
-        daemon_loop
-        ;;
-    *)
-        . /etc/rc.common
-        ;;
-esac
+if [ "${1:-}" = "_daemon" ]; then
+    daemon_loop
+    exit $?
+fi

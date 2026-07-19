@@ -16,7 +16,9 @@
 #     模式: booting, dialing, connected, failed, no-link, off
 #
 # 硬件: GPIO50(R) GPIO70(G) GPIO69(B), 低电平有效
-#   brightness=255 → 亮, brightness=0 → 灭
+#   max_brightness=1（二进制开关，非 PWM）
+#   brightness=1 → 亮, brightness=0 → 灭
+#   ⚠ timer trigger 会重置 brightness=0，须在 trigger 切换后重设 brightness
 
 LED_RED="/sys/class/leds/red:status/brightness"
 LED_GREEN="/sys/class/leds/green:status/brightness"
@@ -36,13 +38,13 @@ DELAY_OFF_BLUE="/sys/class/leds/blue:status/delay_off"
 # 颜色 → R G B (0灭, 255亮)
 _color_rgb() {
     case "$1" in
-        red)     echo "255 0 0" ;;
-        green)   echo "0 255 0" ;;
-        blue)    echo "0 0 255" ;;
-        yellow)  echo "255 255 0" ;;
-        cyan)    echo "0 255 255" ;;
-        magenta) echo "255 0 255" ;;
-        white)   echo "255 255 255" ;;
+        red)     echo "1 0 0" ;;
+        green)   echo "0 1 0" ;;
+        blue)    echo "0 0 1" ;;
+        yellow)  echo "1 1 0" ;;
+        cyan)    echo "0 1 1" ;;
+        magenta) echo "1 0 1" ;;
+        white)   echo "1 1 1" ;;
         off)     echo "0 0 0" ;;
         *)
             echo "unknown" >&2
@@ -57,23 +59,32 @@ _set_leds() {
     local on_ms="${5:-500}"
     local off_ms="${6:-500}"
 
-    # 设置 trigger
+    # ⚠ timer trigger 会重置 brightness=0，顺序必须是: none→亮度→切 trigger→延时→再设亮度
+    echo "none" > "$TRIGGER_RED" 2>/dev/null
+    echo "$r" > "$LED_RED" 2>/dev/null
     echo "$trigger" > "$TRIGGER_RED" 2>/dev/null
-    echo "$trigger" > "$TRIGGER_GREEN" 2>/dev/null
-    echo "$trigger" > "$TRIGGER_BLUE" 2>/dev/null
-
     if [ "$trigger" = "timer" ]; then
         echo "$on_ms" > "$DELAY_ON_RED" 2>/dev/null
         echo "$off_ms" > "$DELAY_OFF_RED" 2>/dev/null
+    fi
+    echo "$r" > "$LED_RED" 2>/dev/null
+
+    echo "none" > "$TRIGGER_GREEN" 2>/dev/null
+    echo "$g" > "$LED_GREEN" 2>/dev/null
+    echo "$trigger" > "$TRIGGER_GREEN" 2>/dev/null
+    if [ "$trigger" = "timer" ]; then
         echo "$on_ms" > "$DELAY_ON_GREEN" 2>/dev/null
         echo "$off_ms" > "$DELAY_OFF_GREEN" 2>/dev/null
+    fi
+    echo "$g" > "$LED_GREEN" 2>/dev/null
+
+    echo "none" > "$TRIGGER_BLUE" 2>/dev/null
+    echo "$b" > "$LED_BLUE" 2>/dev/null
+    echo "$trigger" > "$TRIGGER_BLUE" 2>/dev/null
+    if [ "$trigger" = "timer" ]; then
         echo "$on_ms" > "$DELAY_ON_BLUE" 2>/dev/null
         echo "$off_ms" > "$DELAY_OFF_BLUE" 2>/dev/null
     fi
-
-    # 设置亮度（timer 模式下 brightness 控制占空比）
-    echo "$r" > "$LED_RED" 2>/dev/null
-    echo "$g" > "$LED_GREEN" 2>/dev/null
     echo "$b" > "$LED_BLUE" 2>/dev/null
 }
 
@@ -163,43 +174,51 @@ cmd_status() {
 #
 _set_rgb() {
     # 设置单个 LED 的 trigger 和 brightness
-    # 用法: _set_rgb <r_trigger> <r_br> <g_trigger> <g_br> <b_trigger> <b_br> [on_ms] [off_ms]
+    # 注意: max_brightness=1，timer trigger 会重置 brightness=0
     local r_trig=$1 r_br=$2 g_trig=$3 g_br=$4 b_trig=$5 b_br=$6
     local on_ms="${7:-500}" off_ms="${8:-500}"
 
-    echo "$r_trig" > "$TRIGGER_RED" 2>/dev/null
+    # 先设 none→亮度→再切目标 trigger→最后再设一次亮度
+    echo "none" > "$TRIGGER_RED" 2>/dev/null
     echo "$r_br" > "$LED_RED" 2>/dev/null
+    echo "$r_trig" > "$TRIGGER_RED" 2>/dev/null
     [ "$r_trig" = "timer" ] && {
         echo "$on_ms" > "$DELAY_ON_RED" 2>/dev/null
         echo "$off_ms" > "$DELAY_OFF_RED" 2>/dev/null
     }
+    echo "$r_br" > "$LED_RED" 2>/dev/null
 
-    echo "$g_trig" > "$TRIGGER_GREEN" 2>/dev/null
+    echo "none" > "$TRIGGER_GREEN" 2>/dev/null
     echo "$g_br" > "$LED_GREEN" 2>/dev/null
+    echo "$g_trig" > "$TRIGGER_GREEN" 2>/dev/null
     [ "$g_trig" = "timer" ] && {
         echo "$on_ms" > "$DELAY_ON_GREEN" 2>/dev/null
         echo "$off_ms" > "$DELAY_OFF_GREEN" 2>/dev/null
     }
+    echo "$g_br" > "$LED_GREEN" 2>/dev/null
 
-    echo "$b_trig" > "$TRIGGER_BLUE" 2>/dev/null
+    echo "none" > "$TRIGGER_BLUE" 2>/dev/null
     echo "$b_br" > "$LED_BLUE" 2>/dev/null
+    echo "$b_trig" > "$TRIGGER_BLUE" 2>/dev/null
     [ "$b_trig" = "timer" ] && {
         echo "$on_ms" > "$DELAY_ON_BLUE" 2>/dev/null
         echo "$off_ms" > "$DELAY_OFF_BLUE" 2>/dev/null
     }
+    echo "$b_br" > "$LED_BLUE" 2>/dev/null
 }
 
 _set_green_blink() {
-    # 设置绿灯闪烁（由服务动态调整间隔）
     local on_ms="${1:-500}" off_ms="${2:-500}"
+    echo "none" > "$TRIGGER_GREEN" 2>/dev/null
+    echo 1 > "$LED_GREEN" 2>/dev/null
     echo "timer" > "$TRIGGER_GREEN" 2>/dev/null
     echo "none" > "$TRIGGER_RED" 2>/dev/null
-    echo "none" > "$TRIGGER_BLUE" 2>/dev/null
     echo 0 > "$LED_RED" 2>/dev/null
+    echo "none" > "$TRIGGER_BLUE" 2>/dev/null
     echo 0 > "$LED_BLUE" 2>/dev/null
-    echo 255 > "$LED_GREEN" 2>/dev/null
     echo "$on_ms" > "$DELAY_ON_GREEN" 2>/dev/null
     echo "$off_ms" > "$DELAY_OFF_GREEN" 2>/dev/null
+    echo 1 > "$LED_GREEN" 2>/dev/null
 }
 
 cmd_mode() {
