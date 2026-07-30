@@ -166,6 +166,116 @@ jobs:
           REMOVE_CONFIG_FRAGMENTS: ${{ inputs.remove_fragments }}
         run: ./build.sh ${{ inputs.model }} ${{ inputs.build_mode }}
 
+      - name: Verify Customizations
+        run: |
+          set +e
+          ERRORS=0
+          BUILD_DIR="./action_build"
+          OVERLAY="$BUILD_DIR/package/base-files/files"
+
+          echo "============================================"
+          echo "  定制验证报告"
+          echo "  模型: ${{ inputs.model }}"
+          echo "============================================"
+
+          # ── 1. LED 控制文件 ──
+          echo ""
+          echo "■ [LED控制]"
+          check_file() {
+            local path="$1" label="$2"
+            if [ -f "$OVERLAY/$path" ]; then
+              echo "  ✅ $label — $path"
+            else
+              echo "  ❌ $label — $path 未找到!"
+              ERRORS=$((ERRORS + 1))
+            fi
+          }
+          check_file "sbin/led-ctl"          "led-ctl CLI 调试工具"
+          check_file "etc/init.d/led-ctrl"   "led-ctrl 互联网监测服务"
+          check_file "etc/uci-defaults/994_led_config" "LED UCI 默认配置"
+
+          # ── 2. UCI defaults 定制 ──
+          echo ""
+          echo "■ [UCI默认配置]"
+          check_file "etc/uci-defaults/990_set_argon_primary"  "Argon 主题配置"
+          check_file "etc/uci-defaults/991_custom_settings"    "系统级定制设置"
+          check_file "etc/uci-defaults/992_set-wifi-uci.sh"    "WiFi 配置器"
+          check_file "etc/uci-defaults/993_run-custom-boot-scripts" "自定义启动框架"
+
+          # ── 3. 诊断脚本 ──
+          echo ""
+          echo "■ [诊断脚本]"
+          for script in tempinfo cpuusage hnatusage nss_diag.sh; do
+            found=$(find "$BUILD_DIR" -name "$script" -type f 2>/dev/null | head -1)
+            if [ -n "$found" ]; then
+              echo "  ✅ $script — $(echo "$found" | sed "s|$BUILD_DIR/||")"
+            else
+              echo "  ⚠️  $script — 未找到（可能非本模型需要）"
+            fi
+          done
+
+          # ── 4. NN6000 DTS LED 极性修正 ──
+          echo ""
+          echo "■ [DTS修正 — NN6000 LED极性]"
+          if echo "${{ inputs.model }}" | grep -qi "nn6000"; then
+            DTS_FILE=$(find "$BUILD_DIR/target/linux/qualcommax" -name "*.dts" -path "*/dts/*" -exec grep -l "status-red" {} \; 2>/dev/null | head -1)
+            if [ -n "$DTS_FILE" ]; then
+              if grep -q "GPIO_ACTIVE_LOW\|active-low" "$DTS_FILE" 2>/dev/null; then
+                echo "  ✅ LED 极性已修正为 GPIO_ACTIVE_LOW"
+              else
+                echo "  ❌ LED 极性未修正（仍为 GPIO_ACTIVE_HIGH）"
+                ERRORS=$((ERRORS + 1))
+              fi
+            else
+              echo "  ⚠️  未找到 NN6000 DTS 文件"
+            fi
+          else
+            echo "  — 非 NN6000 模型，跳过"
+          fi
+
+          # ── 5. 补丁文件 ──
+          echo ""
+          echo "■ [补丁部署]"
+          for patch in 001-fix-provides-version-parsing.patch 100-smartdns-optimize.patch 999-chanage-default-leaseduration.patch; do
+            found=$(find "$BUILD_DIR" -name "$patch" 2>/dev/null | head -1)
+            if [ -n "$found" ]; then
+              echo "  ✅ $patch — 已部署"
+            else
+              echo "  ⚠️  $patch — 未在构建树中找到"
+            fi
+          done
+
+          # ── 6. 预编译 IPK ──
+          echo ""
+          echo "■ [预编译IPK]"
+          PREBUILT_COUNT=$(ls -1 "./wrt_core/prebuilt_packages/pkgs/"*.ipk 2>/dev/null | wc -l)
+          if [ "$PREBUILT_COUNT" -gt 0 ]; then
+            echo "  ✅ $PREBUILT_COUNT 个预编译 IPK 可用"
+          else
+            echo "  ⚠️  无预编译 IPK"
+          fi
+
+          # ── 7. 固件产物完整性 ──
+          echo ""
+          echo "■ [固件产物]"
+          FW_COUNT=$(ls -1 ./firmware/*.* 2>/dev/null | wc -l)
+          if [ "$FW_COUNT" -gt 0 ]; then
+            echo "  ✅ 固件文件数: $FW_COUNT"
+            ls -lh ./firmware/ 2>/dev/null | grep -v '^total' | while read line; do echo "    $line"; done
+          else
+            echo "  ⚠️  firmware/ 目录为空（调试模式可能不产生固件）"
+          fi
+
+          # ── 汇总 ──
+          echo ""
+          echo "============================================"
+          if [ $ERRORS -eq 0 ]; then
+            echo "  结果: ✅ 所有定制检查通过"
+          else
+            echo "  结果: ⚠️  $ERRORS 项检查未通过"
+          fi
+          echo "============================================"
+
       - name: Delete Old Cache
         run: |
           # 获取缓存列表并删除

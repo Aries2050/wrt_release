@@ -15,9 +15,10 @@
 #   led-ctl mode <mode>             切换网络状态模式
 #     模式: booting, dialing, connected, failed, no-link, off
 #
-# 硬件: GPIO50(R) GPIO70(G) GPIO69(B), 低电平有效
+# 硬件: GPIO50(R) GPIO70(G) GPIO69(B), 共阳（低电平点亮）
+#   DTS 已设置 active-low + GPIO_ACTIVE_LOW，内核自动处理反转
 #   max_brightness=1（二进制开关，非 PWM）
-#   brightness=1 → 亮, brightness=0 → 灭
+#   brightness=1 → LED 亮, brightness=0 → LED 灭
 #   ⚠ timer trigger 会重置 brightness=0，须在 trigger 切换后重设 brightness
 
 LED_RED="/sys/class/leds/red:status/brightness"
@@ -58,6 +59,9 @@ _set_leds() {
     local trigger="${4:-none}"
     local on_ms="${5:-500}"
     local off_ms="${6:-500}"
+
+    # DTS 已设 active-low + GPIO_ACTIVE_LOW，内核自动反转 GPIO 电平
+    # brightness=1 → GPIO LOW → LED 亮, brightness=0 → GPIO HIGH → LED 灭
 
     # ⚠ timer trigger 会重置 brightness=0，顺序必须是: none→亮度→切 trigger→延时→再设亮度
     echo "none" > "$TRIGGER_RED" 2>/dev/null
@@ -132,20 +136,20 @@ cmd_status() {
     echo "  绿 (green:status): brightness=$g  trigger=$tg"
     echo "  蓝 (blue:status):  brightness=$b  trigger=$tb"
 
-    # 推断当前显示颜色
-    if [ "$r" = "255" ] && [ "$g" = "0" ] && [ "$b" = "0" ]; then
+    # 推断当前显示颜色（max_brightness=1，sysfs 读回值为 0 或 1）
+    if [ "$r" = "1" ] && [ "$g" = "0" ] && [ "$b" = "0" ]; then
         echo "  当前颜色: 红"
-    elif [ "$r" = "0" ] && [ "$g" = "255" ] && [ "$b" = "0" ]; then
+    elif [ "$r" = "0" ] && [ "$g" = "1" ] && [ "$b" = "0" ]; then
         echo "  当前颜色: 绿"
-    elif [ "$r" = "0" ] && [ "$g" = "0" ] && [ "$b" = "255" ]; then
+    elif [ "$r" = "0" ] && [ "$g" = "0" ] && [ "$b" = "1" ]; then
         echo "  当前颜色: 蓝"
-    elif [ "$r" = "255" ] && [ "$g" = "255" ] && [ "$b" = "0" ]; then
+    elif [ "$r" = "1" ] && [ "$g" = "1" ] && [ "$b" = "0" ]; then
         echo "  当前颜色: 黄"
-    elif [ "$r" = "255" ] && [ "$g" = "0" ] && [ "$b" = "255" ]; then
+    elif [ "$r" = "1" ] && [ "$g" = "0" ] && [ "$b" = "1" ]; then
         echo "  当前颜色: 紫"
-    elif [ "$r" = "0" ] && [ "$g" = "255" ] && [ "$b" = "255" ]; then
+    elif [ "$r" = "0" ] && [ "$g" = "1" ] && [ "$b" = "1" ]; then
         echo "  当前颜色: 青"
-    elif [ "$r" = "255" ] && [ "$g" = "255" ] && [ "$b" = "255" ]; then
+    elif [ "$r" = "1" ] && [ "$g" = "1" ] && [ "$b" = "1" ]; then
         echo "  当前颜色: 白"
     elif [ "$r" = "0" ] && [ "$g" = "0" ] && [ "$b" = "0" ]; then
         echo "  当前颜色: 灭"

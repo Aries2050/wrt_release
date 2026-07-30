@@ -36,6 +36,7 @@
 | 2026-07-19 | `ea4dd1c`–`99ae05c` | 固件特征指纹 + 文档修正 |
 | 2026-07-19 | `0f5325b` | RGB LED 互联网状态指示灯（5 状态服务方案） |
 | 2026-07-31 | 合并 `upstream/main` (`4bf1cc0`) | 合并上游：恢复 quickstart 所有存储依赖；额外完全移除清理块 |
+| 2026-07-31 | LED 服务修复+亮度反转+CI验证 | 见第 13 节修复记录 |
 
 ## 定制清单
 
@@ -202,8 +203,28 @@
 | brightness 值域 | `fix_nn6000_led_label` 修正为 ACTIVE_LOW 后 `max_brightness=1`（二进制开关），写入 `255` 被截断。全部改为 `1` |
 | timer trigger 重置 brightness | 切换到 timer trigger 时内核重置 brightness=0。操作顺序改为 none→亮度→timer→delay→再设亮度 |
 | DTS 搜索过宽 | `fix_nn6000_led_label` 中 `grep -rl status-red \| head -1` 搜到 ipq807x 的 DTS 而非 NN6000 的。改为优先 ipq60xx 子目录，次选排除 ipq807x |
+| procd `$0` 路径错误 | `procd_set_param command /bin/sh "\$0" _daemon` 中 `\$0` 在 rc.common shebang 下解析为 `/etc/rc.common`，导致 procd 执行 `/bin/sh /etc/rc.common _daemon`（缺少脚本路径）。改为硬编码 `/etc/init.d/led-ctrl` |
+| 极性反转未生效 | `fix_nn6000_led_label` 修正未写入编译产物，DTS 中 `gpios flags=0 (GPIO_ACTIVE_HIGH)`，无 `active-low;` 属性。共阳硬件下 `brightness=0`=亮、`1`=灭，与代码假设相反 |
+| 方案选择 | 采用 **方案 A**：依赖 DTS 修正（`target_fixes.sh` 中保留修正，并增加 `active-low;` 属性），源文件恢复标准逻辑（`brightness=1=亮`）；当前运行固件通过 SCP 部署软件反转版临时工作 |
+| `cmd_status` 颜色推断 | 推断条件写 `"255"` 但 `max_brightness=1`，sysfs 读回 `1`，颜色推断始终不显示。改为匹配 `"1"` |
+| CRLF 行尾破坏 shebang | 源文件为 Windows CRLF，`#!/bin/sh\r` 导致内核找不到解释器 → `not found`。通过 SCP 上传（而非管道）避免行尾转换 |
 
-### 14. 恢复 quickstart 存储依赖
+### 14. CI 验证步骤
+
+| 更改 | 文件 | 说明 |
+|------|------|------|
+| 新增 Verify Customizations | `.github/workflows/build_wrt.yml` / `release_wrt.yml` | Build Firmware 后检查 7 项定制是否生效 |
+
+**验证项：**
+1. LED 控制文件（`led-ctl`、`led-ctrl.init`、`994_led_config`）
+2. UCI defaults（Argon 主题、系统设置、WiFi 配置器、自定义启动框架）
+3. 诊断脚本（`tempinfo`、`cpuusage`、`hnatusage`、`nss_diag.sh`）
+4. DTS LED 极性修正（仅 NN6000 模型）
+5. 补丁部署
+6. 预编译 IPK 可用性
+7. 固件产物完整性
+
+### 15. 恢复 quickstart 存储依赖
 
 | 更改 | 提交 | 文件 | 说明 |
 |------|------|------|------|
