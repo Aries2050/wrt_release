@@ -2,7 +2,11 @@
 
 > **硬件平台**: Qualcomm IPQ6018/IPQ6000
 > **适用固件**: 原厂 Chaos Calmer 15.05.1 / ImmortalWRT SNAPSHOT
-> **最后更新**: 2026-07-19
+> **最后更新**: 2026-07-31
+>
+> **定制 LED 服务**: 本仓库实现了自定义 `/etc/init.d/led-ctrl` 5 状态 RGB LED 服务，
+> 见 `wrt_core/patches/led-ctrl.init` 和 `wrt_core/patches/led-ctl`。
+> 详见 [CHANGES.md](./CHANGES.md) 第 13 节。
 
 ---
 

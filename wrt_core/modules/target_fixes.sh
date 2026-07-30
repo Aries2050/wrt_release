@@ -188,6 +188,7 @@ fix_nn6000_led_label() {
     local fixed=0
 
     # 将 status-red/status-green/status-blue 的 GPIO flags 从 ACTIVE_HIGH 改为 ACTIVE_LOW
+    # 同时添加显式的 active-low; 属性（部分内核 LED 驱动只认属性不认 flags）
     for node in status-red status-green status-blue; do
         if grep -q "$node" "$dts_file"; then
             # 匹配 DTS 中 gpios 属性的两种常见写法:
@@ -197,8 +198,9 @@ fix_nn6000_led_label() {
             sed -i "/$node {/,/};/{
                 /gpios =/s/GPIO_ACTIVE_HIGH/GPIO_ACTIVE_LOW/g
                 /gpios =/s/ [0-9]\+>$/ 1>/
+                /active-low;/!s/\($node {\)/\1\n\t\tactive-low;/
             }" "$dts_file"
-            echo "  已修正 $node GPIO flags: ACTIVE_HIGH → ACTIVE_LOW"
+            echo "  已修正 $node: GPIO flags → ACTIVE_LOW, 添加 active-low;"
             fixed=1
         fi
     done
