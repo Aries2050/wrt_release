@@ -1,6 +1,6 @@
 # 本地定制更改概览
 
-> **最后更新**: 2026-07-19
+> **最后更新**: 2026-07-31
 
 本仓库源自 [ZqinKing/wrt_release](https://github.com/ZqinKing/wrt_release)，在此基础上有以下本地定制。
 
@@ -35,6 +35,7 @@
 | 2026-07-19 | `f514715`–`ea341f1` | 原厂 LED 脚本提取 + 文档整理 |
 | 2026-07-19 | `ea4dd1c`–`99ae05c` | 固件特征指纹 + 文档修正 |
 | 2026-07-19 | `0f5325b` | RGB LED 互联网状态指示灯（5 状态服务方案） |
+| 2026-07-31 | `feat/add-usb-wifi-drivers` | 新增 USB WiFi 驱动：RTL8188RU（`kmod-rtl8xxxu`）和 RT3070（`kmod-rt2800-usb`） |
 
 ## 定制清单
 
@@ -88,6 +89,8 @@
 | `openvpn-openssl` + `luci-app-openvpn-server`（DCO / FRAGMENT / LZ4） | `d100602` | OpenVPN 服务端 |
 | `tailscale` + `luci-app-tailscale` | `d100602` | Tailscale 虚拟组网（从 custom_feed 拉取） |
 | `jq` | `707f49e` | JSON 命令行处理工具 |
+| `kmod-rtl8xxxu` / `rtl8188eu-firmware` | `feat/add-usb-wifi-drivers` | RTL8188RU USB 无线网卡驱动（主线 `rtl8xxxu`，仅 20MHz/72Mbps） |
+| `kmod-rt2800-usb` / `rt2800-usb-firmware` | `feat/add-usb-wifi-drivers` | RT3070/Ralink RT2870 USB 无线网卡驱动和固件 |
 
 ### 6. glibc 兼容层
 
