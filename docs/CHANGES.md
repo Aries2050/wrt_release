@@ -37,6 +37,7 @@
 | 2026-07-19 | `0f5325b` | RGB LED 互联网状态指示灯（5 状态服务方案） |
 | 2026-07-31 | 合并 `upstream/main` (`4bf1cc0`) | 合并上游：恢复 quickstart 所有存储依赖；额外完全移除清理块 |
 | 2026-07-31 | LED 服务修复+亮度反转+CI验证 | 见第 13 节修复记录 |
+| 2026-07-31 | 定制分支信息显示 | 在 LuCI 概览页固件版本与内核版本之间插入「定制分支」行，显示编译所基于的仓库/分支/提交哈希 |
 
 ## 定制清单
 
@@ -91,7 +92,13 @@
 | `tailscale` + `luci-app-tailscale` | `d100602` | Tailscale 虚拟组网（从 custom_feed 拉取） |
 | `jq` | `707f49e` | JSON 命令行处理工具 |
 
-### 6. glibc 兼容层
+### 6. 定制分支信息行
+
+| 更改 | 提交 | 文件 | 说明 |
+|------|------|------|------|
+| LuCI 概览页插入「定制分支」行 | 当前 | `wrt_core/modules/luci_fixes.sh` → `set_build_signature()` | 在状态页「固件版本」与「内核版本」之间新增一行，显示编译所基于的上游仓库/分支及提交哈希；通过标准 LuCI i18n 添加中文翻译「定制分支」|
+
+### 7. glibc 兼容层
 
 | 模块 | 提交 | 说明 | 状态 |
 |------|------|------|------|
@@ -104,7 +111,7 @@
 
 详见 [GLIBC_COMPAT.md](./GLIBC_COMPAT.md)。
 
-### 7. 基础配置调整
+### 8. 基础配置调整
 
 | 更改 | 提交 | 文件 |
 |------|------|------|
@@ -113,13 +120,13 @@
 | 添加 Go Setup 步骤 | `d100602` | `.github/workflows/build_wrt.yml` |
 | NN6000v2 加入 `zram-swap` / `luci-app-emmc-health` | `cb00024` | `wrt_core/deconfig/link_nn6000v2_immwrt.config` |
 
-### 8. 构建标识
+### 9. 构建标识
 
 | 更改 | 提交 | 文件 | 说明 |
 |------|------|------|------|
 | LuCI 状态页构建标识改为 `compilation framework by ZqinKing, build by Aries` | `29273ea` | `wrt_core/modules/luci_fixes.sh` | 替换上游默认的 `build by ZqinKing` |
 
-### 9. HDSentinel 硬盘检测工具
+### 10. HDSentinel 硬盘检测工具
 
 | 更改 | 提交 | 文件 | 说明 |
 |------|------|------|------|
@@ -127,18 +134,18 @@
 | 本地回退包 | `deb75fa` | `wrt_core/prebuilt_packages/hdsentinel/*.zip` | 下载失败时使用仓库内本地副本 |
 | 设为全局命令和环境变量 | `76408a3` | `wrt_core/modules/target_fixes.sh` | 创建 `/usr/bin/hdsentinel` 包装脚本（自动调用 `glibc-run`）及 `/etc/profile.d/hdsentinel.sh` |
 
-### 10. 自动集成预编译包（已移除）
+### 11. 自动集成预编译包（已移除）
 
 > **注**：旧方案在 `build.sh` 中将预编译 IPK 复制到 `bin/targets/*/packages/` 及 `firmware/`（`d100602`）。该功能已由构建时注入（`install_prebuilt_ipks()` → `BUILD_DIR/files/`）替代，`build.sh` 中相关代码已在 `3f29ec7` 中清理。
 
-### 11. 自定义启动脚本
+### 12. 自定义启动脚本
 
 | 更改 | 提交 | 文件 | 说明 |
 |------|------|------|------|
 | 新增自定义启动脚本功能 | `b72c741` | `wrt_core/patches/993_run-custom-boot-scripts` | 每次刷机/升级后首次启动，自动扫描 `/etc/custom-boot.d/` 下按数字前缀命名的子目录，并执行每个子目录中的 `apply.sh` 脚本（安全限制：固定文件名，防止意外执行任意文件）。目录隔离设计，每项非公共更改独占一个子目录（如 `01-mac-spoof/`、`02-dns-tweak/`）。该目录位于 overlay 分区（`sysupgrade` 保留） |
 | 加入 sysupgrade 备份清单 | `b72c741` | `wrt_core/modules/target_fixes.sh` | `/etc/custom-boot.d/` 已加入 `sysupgrade.conf`，与其他保留路径（AdGuardHome、easytier、lucky）一致 |
 
-### 12. 代码质量修复
+### 13. 代码质量修复
 
 | 更改 | 提交 | 文件 | 说明 |
 |------|------|------|------|
@@ -163,7 +170,7 @@
 | CI 安装 7zip/binutils 修复解压 | `d2a8084` | `.github/workflows/build_wrt.yml` / `release_wrt.yml` | CI 安装 `binutils`(ar) 和 `7zip`(7zz) |
 | install_prebuilt_ipks 解压兜底 | `cb00024` | `wrt_core/modules/target_fixes.sh` | 支持 gzip+tarball 格式 IPK；后移除已无用的 `ar` 兜底 |
 
-### 13. RGB LED 互联网状态指示灯（5 状态服务方案）
+### 14. RGB LED 互联网状态指示灯（5 状态服务方案）
 
 > 引入于 `0f5325b`（2026-07-19）。三色为同一 RGB 灯珠（混色），由 `/etc/init.d/led-ctrl` 服务集中管理，**每次只亮需要的 LED，避免非预期混色**。
 
@@ -209,7 +216,7 @@
 | `cmd_status` 颜色推断 | 推断条件写 `"255"` 但 `max_brightness=1`，sysfs 读回 `1`，颜色推断始终不显示。改为匹配 `"1"` |
 | CRLF 行尾破坏 shebang | 源文件为 Windows CRLF，`#!/bin/sh\r` 导致内核找不到解释器 → `not found`。通过 SCP 上传（而非管道）避免行尾转换 |
 
-### 14. CI 验证步骤
+### 15. CI 验证步骤
 
 | 更改 | 文件 | 说明 |
 |------|------|------|
@@ -224,7 +231,7 @@
 6. 预编译 IPK 可用性
 7. 固件产物完整性
 
-### 15. 恢复 quickstart 存储依赖
+### 16. 恢复 quickstart 存储依赖
 
 | 更改 | 提交 | 文件 | 说明 |
 |------|------|------|------|
