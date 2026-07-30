@@ -1,6 +1,6 @@
 # 本地定制更改概览
 
-> **最后更新**: 2026-07-19
+> **最后更新**: 2026-07-31
 
 本仓库源自 [ZqinKing/wrt_release](https://github.com/ZqinKing/wrt_release)，在此基础上有以下本地定制。
 
@@ -35,6 +35,7 @@
 | 2026-07-19 | `f514715`–`ea341f1` | 原厂 LED 脚本提取 + 文档整理 |
 | 2026-07-19 | `ea4dd1c`–`99ae05c` | 固件特征指纹 + 文档修正 |
 | 2026-07-19 | `0f5325b` | RGB LED 互联网状态指示灯（5 状态服务方案） |
+| 2026-07-31 | 合并 `upstream/main` (`4bf1cc0`) | 合并上游：恢复 quickstart 所有存储依赖；额外完全移除清理块 |
 
 ## 定制清单
 
@@ -201,6 +202,16 @@
 | brightness 值域 | `fix_nn6000_led_label` 修正为 ACTIVE_LOW 后 `max_brightness=1`（二进制开关），写入 `255` 被截断。全部改为 `1` |
 | timer trigger 重置 brightness | 切换到 timer trigger 时内核重置 brightness=0。操作顺序改为 none→亮度→timer→delay→再设亮度 |
 | DTS 搜索过宽 | `fix_nn6000_led_label` 中 `grep -rl status-red \| head -1` 搜到 ipq807x 的 DTS 而非 NN6000 的。改为优先 ipq60xx 子目录，次选排除 ipq807x |
+
+### 14. 恢复 quickstart 存储依赖
+
+| 更改 | 提交 | 文件 | 说明 |
+|------|------|------|------|
+| 移除 quickstart 非必要存储依赖的 sed 清理块 | 合并 `upstream/main` (`4bf1cc0`) | `wrt_core/modules/feed_source_fixes.sh` → `fix_quickstart()` | 合并上游提交 `4bf1cc0`（恢复 `smartd`），并进一步删除整个移除块——包括 `+smartmontools-drivedb`、`+smartmontools`、`+smartd`、`+mdadm`、`+parted`、`+e2fsprogs` 的 sed 命令 |
+
+**背景**：上游提交 `b42aa78`（2026-07-08）添加了移除 quickstart 非必要存储依赖的 sed 逻辑。该逻辑导致 `smartd`（S.M.A.R.T. 监控守护进程）被移除，进而造成 iStoreX 首页磁盘信息无法正常显示（Issue #194）。上游已在 `4bf1cc0` 修复并恢复 `smartd`。
+
+本次合入 `upstream/main`（`4bf1cc0`）后，在此基础上进一步移除整个依赖清理块，不再干预 quickstart 的任何依赖项。`fix_quickstart()` 现仅保留 `istore_backend.lua` 下载修复逻辑。
 
 ## 与上游的差异标识
 
