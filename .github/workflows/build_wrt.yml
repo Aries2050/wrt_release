@@ -84,6 +84,27 @@ jobs:
       - name: Pre Clone
         run: ./wrt_core/pre_clone_action.sh ${{ inputs.model }}
 
+      - name: Pre-build Check — Prebuilt Packages
+        run: |
+          ERRORS=0
+          echo "============================================"
+          echo "  Pre-build 检查"
+          echo "  模型: ${{ inputs.model }}"
+          echo "============================================"
+          echo "■ [预编译IPK]"
+          PREBUILT_COUNT=$(ls -1 "./wrt_core/prebuilt_packages/pkgs/"*.ipk 2>/dev/null | wc -l)
+          if [ "$PREBUILT_COUNT" -gt 0 ]; then
+            echo "  ✅ $PREBUILT_COUNT 个预编译 IPK 可用"
+          else
+            echo "  ❌ 无预编译 IPK（若模型依赖预编译包，构建会失败）"
+            ERRORS=$((ERRORS + 1))
+          fi
+          if [ $ERRORS -gt 0 ]; then
+            echo "结果: ❌ $ERRORS 项检查未通过，终止构建"
+            exit 1
+          fi
+          echo "结果: ✅ 所有预检查通过"
+
       - name: Load Config Flag
         run: |
           if [ -f "./config_flag" ]; then
@@ -233,29 +254,72 @@ jobs:
             echo "  — 非 NN6000 模型，跳过"
           fi
 
-          # ── 5. 补丁文件 ──
+          # ── 5. 定制分支信息 ──
           echo ""
-          echo "■ [补丁部署]"
-          for patch in 001-fix-provides-version-parsing.patch 100-smartdns-optimize.patch 999-chanage-default-leaseduration.patch; do
-            found=$(find "$BUILD_DIR" -name "$patch" 2>/dev/null | head -1)
-            if [ -n "$found" ]; then
-              echo "  ✅ $patch — 已部署"
-            else
-              echo "  ⚠️  $patch — 未在构建树中找到"
-            fi
-          done
+          echo "■ [定制分支信息行]"
 
-          # ── 6. 预编译 IPK ──
-          echo ""
-          echo "■ [预编译IPK]"
-          PREBUILT_COUNT=$(ls -1 "./wrt_core/prebuilt_packages/pkgs/"*.ipk 2>/dev/null | wc -l)
-          if [ "$PREBUILT_COUNT" -gt 0 ]; then
-            echo "  ✅ $PREBUILT_COUNT 个预编译 IPK 可用"
+          # 检查源文件（确认 set_build_signature 补丁已应用）
+          JS_SOURCE=$(find "$BUILD_DIR/feeds/luci/modules/luci-mod-status" -name "10_system.js" 2>/dev/null | head -1)
+          JS_BUILT=$(find "$BUILD_DIR/build_dir" -path "*/luci-mod-status*/htdocs/*/10_system.js" 2>/dev/null | head -1)
+
+          if [ -n "$JS_SOURCE" ]; then
+            if grep -q "_('Custom Branch')" "$JS_SOURCE" 2>/dev/null; then
+              echo "  ✅ 源文件 — 包含 _('Custom Branch')"
+            else
+              echo "  ❌ 源文件 — 未找到 _('Custom Branch')"
+              ERRORS=$((ERRORS + 1))
+            fi
           else
-            echo "  ⚠️  无预编译 IPK"
+            echo "  ❌ 源文件 — 10_system.js 未找到（set_build_signature 可能未执行）"
+            ERRORS=$((ERRORS + 1))
           fi
 
-          # ── 7. 固件产物完整性 ──
+          if [ -n "$JS_BUILT" ]; then
+            if grep -q "_('Custom Branch')" "$JS_BUILT" 2>/dev/null; then
+              echo "  ✅ 构建产物 — $(echo "$JS_BUILT" | sed "s|$BUILD_DIR/||") — 验证通过"
+            else
+              echo "  ❌ 构建产物 — _('Custom Branch') 未命中（可能被构建过程覆盖）"
+              ERRORS=$((ERRORS + 1))
+            fi
+          else
+            echo "  ⚠️  构建产物 — 未在 build_dir 中找到 luci-mod-status 副本（可能已清理）"
+          fi
+
+          PO_FILE=$(find "$BUILD_DIR/feeds/luci/modules/luci-mod-status/po" -name "luci-mod-status.po" -path "*/zh-cn/*" 2>/dev/null | head -1)
+          if [ -n "$PO_FILE" ]; then
+            if grep -q '"Custom Branch"' "$PO_FILE" && grep -q '"定制分支"' "$PO_FILE"; then
+              echo "  ✅ zh-cn .po — 已包含定制分支翻译"
+            else
+              echo "  ❌ zh-cn .po — 翻译条目不完整"
+              ERRORS=$((ERRORS + 1))
+            fi
+          else
+            echo "  ⚠️  zh-cn .po — 未找到（可能无中文包）"
+          fi
+
+          # ── 7. 补丁文件 ──
+          echo ""
+          echo "■ [补丁部署]"
+
+          # 检查补丁文件是否存在于对应的 package patches 目录（确认注入成功）
+          check_patch() {
+            local patch_name="$1" search_dir="$2" label="$3"
+            local found
+            found=$(find "$search_dir" -name "$patch_name" 2>/dev/null | head -1)
+            if [ -n "$found" ]; then
+              echo "  ✅ $label — $(echo "$found" | sed "s|$BUILD_DIR/||")"
+            else
+              echo "  ⚠️  $label — $patch_name 未在 $search_dir 中找到"
+            fi
+          }
+          check_patch "001-fix-provides-version-parsing.patch" \
+            "$BUILD_DIR/feeds/packages/system/opkg/patches" "opkg Provides 版本解析修复"
+          check_patch "100-smartdns-optimize.patch" \
+            "$BUILD_DIR/feeds/packages/net/smartdns/patches" "smartdns 优化"
+          check_patch "999-chanage-default-leaseduration.patch" \
+            "$BUILD_DIR/feeds/packages/net/miniupnpd/patches" "miniupnpd 默认租期"
+
+          # ── 8. 固件产物完整性 ──
           echo ""
           echo "■ [固件产物]"
           FW_COUNT=$(ls -1 ./firmware/*.* 2>/dev/null | wc -l)

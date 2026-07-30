@@ -23,7 +23,7 @@ wrt_release/
 │   │   ├── feed_source_fixes.sh      ← feed 源清理与替换
 │   │   ├── package_source_updates.sh ← 软件包源码替换与补齐
 │   │   ├── target_fixes.sh           ← 目标平台、内核、基础系统修正（含 fix_nn6000_led_label）
-│   │   ├── luci_fixes.sh             ← Luci 界面修正
+│   │   ├── luci_fixes.sh             ← ⭐ Luci 界面修正（含定制分支信息行注入）
 │   │   ├── service_fixes.sh          ← 服务包与运行时配置修正
 │   │   ├── docker.sh                 ← Docker 相关配置
 │   │   ├── cups.sh                   ← CUPS 打印服务
@@ -136,6 +136,7 @@ git push origin main
 | `modules/glibc_compat.sh` | 上游不存在 | 运行时 glibc 兼容层，确认 `update.sh` 中引用完好 |
 | `led-ctl` / `led-ctrl.init` / `994_led_config` | 上游不存在 | RGB LED 控制系统，确认 `install_led_control()` 注册完好 |
 | `993_run-custom-boot-scripts` | 上游不存在 | 自定义启动脚本，确认 `/etc/custom-boot.d/` 加入 sysupgrade.conf |
+| `set_build_signature()` (luci_fixes.sh) | 可能被上游覆盖 | 定制分支信息行 + `.po` 翻译注入，确认 `10_system.js` 包含 `_('Custom Branch')` |
 
 ### 合并后检查清单
 
@@ -155,6 +156,7 @@ git push origin main
 - [ ] `led-ctl`、`led-ctrl.init`、`994_led_config` 补丁是否存在
 - [ ] `install_led_control()` 是否在 `update.sh` 中正确注册
 - [ ] NN6000v2 配置是否有 `zram-swap`/`emmc-health`
+- [ ] `set_build_signature()` 中的定制分支逻辑是否完好（检查 `luci_fixes.sh`）
 - [ ] `993_run-custom-boot-scripts` 补丁是否存在
 - [ ] `scripts/check_stock_leds.sh` 是否存在
 - [ ] `docs/stock-firmware/` 参考脚本是否完整

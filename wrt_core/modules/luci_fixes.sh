@@ -4,7 +4,39 @@
 set_build_signature() {
     local file="$BUILD_DIR/feeds/luci/modules/luci-mod-status/htdocs/luci-static/resources/view/status/include/10_system.js"
     if [ -d "$(dirname "$file")" ] && [ -f $file ]; then
-        sed -i "s/(\(luciversion || ''\))/(\1) + (' compilation framework by ZqinKing, build by Aries')/g" "$file"
+        # sed -i "s/(\(luciversion || ''\))/(\1) + (' compilation framework by ZqinKing, build by Aries')/g" "$file"
+
+        # 插入定制分支信息行（固件版本与内核版本之间）
+        local repo_short
+        repo_short=$(echo "$REPO_URL" | sed -E 's|https?://[^/]+/||; s|\.git$||')
+        local branch_info="${repo_short} @ ${REPO_BRANCH}"
+        if [ "$COMMIT_HASH" != "none" ] && [ -n "$COMMIT_HASH" ]; then
+            branch_info="${branch_info} (${COMMIT_HASH:0:7})"
+        fi
+        # 转义 sed 替换字符串中的特殊字符
+        branch_info=$(printf '%s\n' "$branch_info" | sed 's/[\/&]/\\&/g')
+        sed -i "/_('Firmware Version')/a\\
+\t\t\t_('Custom Branch'),\t'${branch_info}'," "$file"
+
+        # 快速自检：确认插入生效（若上游重构 10_system.js 导致 sed 失效，此处提前暴露）
+        if ! grep -q "_('Custom Branch')" "$file" 2>/dev/null; then
+            echo "错误：set_build_signature — 在 $file 中未找到 _('Custom Branch')，sed 可能因上游重构而失效。" >&2
+            exit 1
+        fi
+
+        # 添加中文翻译到 luci-mod-status 的 .po 文件
+        local po_file="$BUILD_DIR/feeds/luci/modules/luci-mod-status/po/zh-cn/luci-mod-status.po"
+        if [ -f "$po_file" ]; then
+            # 检查是否已存在翻译条目，避免重复插入
+            if ! grep -q '"Custom Branch"' "$po_file"; then
+                cat >> "$po_file" <<EOF
+
+#: htdocs/luci-static/resources/view/status/include/10_system.js:0
+msgid "Custom Branch"
+msgstr "定制分支"
+EOF
+            fi
+        fi
     fi
 }
 
