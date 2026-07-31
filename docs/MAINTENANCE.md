@@ -135,8 +135,9 @@ git push origin main
 | `glibc-compat-check.sh` | 上游不存在 | 运行诊断脚本，确认文件存在 |
 | `modules/glibc_compat.sh` | 上游不存在 | 运行时 glibc 兼容层，确认 `update.sh` 中引用完好 |
 | `led-ctl` / `led-ctrl.init` / `994_led_config` | 上游不存在 | RGB LED 控制系统，确认 `install_led_control()` 注册完好 |
+| `fix_nn6000_led_label()` (target_fixes.sh) | 上游 DTS 结构变化 | 搜索 `patches-6.*/`、`files-6.*/`、`dts/` 中的 NN6000 DTS/补丁并修正 GPIO 极性（GPIO_ACTIVE_HIGH→LOW + `active-low;`）。若上游重构 DTS 路径需同步更新搜索逻辑 |
 | `993_run-custom-boot-scripts` | 上游不存在 | 自定义启动脚本，确认 `/etc/custom-boot.d/` 加入 sysupgrade.conf |
-| `set_build_signature()` (luci_fixes.sh) | 可能被上游覆盖 | 定制分支信息行 + `.po` 翻译注入，确认 `10_system.js` 包含 `_('Custom Branch')` |
+| `set_build_signature()` (luci_fixes.sh) | 可能被上游覆盖 | 定制分支信息行（双仓库格式）+ `.po` 翻译注入（`po/zh_Hans/`），确认 `10_system.js` 包含 `_('Custom Branch')` |
 
 ### 合并后检查清单
 

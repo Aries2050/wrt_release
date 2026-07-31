@@ -109,104 +109,89 @@ fix_nn6000_led_label() {
     #   GPIO 70 → 🟢 绿 (status-green)
     #   GPIO 69 → 🔵 蓝 (status-blue)
     #
-    # DTS 标签与物理颜色一致，不存在标签反置问题。
     # 真实问题: ImmortalWRT DTS 中 gpios 的 flags 为 GPIO_ACTIVE_HIGH (0x00)，
     # 但硬件为低电平有效（common anode），应使用 GPIO_ACTIVE_LOW (0x01)。
     #
-    # 修复: 将 status-red/status-green/status-blue 的 gpios flags 从
-    #       GPIO_ACTIVE_HIGH (0) 改为 GPIO_ACTIVE_LOW (1)
+    # 修复: 搜索以下位置，找到包含 status-red 的文件，将其 gpios flags
+    #       从 GPIO_ACTIVE_HIGH (0) 改为 GPIO_ACTIVE_LOW (1)，并添加 active-low;
+    #   - target/linux/qualcommax/patches-6.*/  (内核补丁，NN6000 DTS 通常在此)
+    #   - target/linux/qualcommax/dts/           (原始 DTS 目录)
+    #   - target/linux/qualcommax/files-6.*/     (内核覆层目录)
     #
     # DTS 格式示例:
     #   修复前: gpios = <&tlmm 50 GPIO_ACTIVE_HIGH>;
     #   修复后: gpios = <&tlmm 50 GPIO_ACTIVE_LOW>;
-    local dts_dir dts_file
-
-    # 查找 DTS 目录: 优先 files-6.18 内核补丁目录, 其次上游 dts/ 目录
-    for dir in \
-        "$BUILD_DIR/target/linux/qualcommax/files-6.18/arch/arm64/boot/dts/qcom" \
-        "$BUILD_DIR/target/linux/qualcommax/dts"; do
-        if [ -d "$dir" ]; then
-            dts_dir="$dir"
-            break
-        fi
-    done
-
-    # 优先搜索 IPQ60xx 子目录下的 DTS 文件（NN6000 属于 IPQ60xx 平台）
-    # 按优先级查找：
-    #   1. link_nn6000v2 特定的 DTS 文件
-    #   2. ipq60xx 目录下的 DTS 文件
-    #   3. 其他目录中与 ipq60/ipq6018 相关的 DTS 文件
-    local dts_files_found=()
-    local target_dir
-
-    # 先找 ipq60xx 子目标下的 dts 目录
-    for dir in \
-        "$BUILD_DIR/target/linux/qualcommax/files-6.18/arch/arm64/boot/dts/qcom" \
-        "$BUILD_DIR/target/linux/qualcommax/dts"; do
-        if [ -d "$dir" ]; then
-            target_dir="$dir"
-            break
-        fi
-    done
-
-    if [ -z "$target_dir" ]; then
-        target_dir=$(find "$BUILD_DIR/target/linux/qualcommax" -path "*/boot/dts/qcom" -type d 2>/dev/null | head -1)
-    fi
-    if [ -z "$target_dir" ]; then
-        target_dir=$(find "$BUILD_DIR/target/linux/qualcommax" -maxdepth 3 -type d -name "dts" 2>/dev/null | head -1)
-    fi
-
-    if [ -z "$target_dir" ] || [ ! -d "$target_dir" ]; then
-        echo "警告: 未找到 Qualcommax DTS 目录，跳过 LED GPIO 极性修正" >&2
-        return
-    fi
-
-    # 优先找 ipq60xx 子目录下的 DTS
-    local ipq60_dir
-    ipq60_dir=$(find "$target_dir" -type d -name "ipq60*" 2>/dev/null | head -1)
-    if [ -n "$ipq60_dir" ]; then
-        dts_file=$(grep -rl "status-red" "$ipq60_dir" 2>/dev/null | head -1)
-    fi
-
-    # 没找到则在整个 DTS 目录中找，排除 ipq807x
-    if [ -z "$dts_file" ]; then
-        dts_file=$(grep -rl "status-red" "$target_dir" 2>/dev/null | grep -v "ipq807" | head -1)
-    fi
-
-    # 最后兜底：任何包含 status-red 的文件
-    if [ -z "$dts_file" ]; then
-        dts_file=$(grep -rl "status-red" "$target_dir" 2>/dev/null | head -1)
-    fi
-
-    if [ -z "$dts_file" ]; then
-        echo "警告: 未找到包含 status-red 的 DTS 文件，跳过 LED GPIO 极性修正" >&2
-        return
-    fi
-
-    echo "发现 NN6000 DTS 文件: $dts_file"
+    #           active-low;
 
     local fixed=0
+    local search_dirs=()
+    local found_files=()
 
-    # 将 status-red/status-green/status-blue 的 GPIO flags 从 ACTIVE_HIGH 改为 ACTIVE_LOW
-    # 同时添加显式的 active-low; 属性（部分内核 LED 驱动只认属性不认 flags）
-    for node in status-red status-green status-blue; do
-        if grep -q "$node" "$dts_file"; then
-            # 匹配 DTS 中 gpios 属性的两种常见写法:
-            #   宏定义: gpios = <&tlmm 50 GPIO_ACTIVE_HIGH>;
-            #   数值:   gpios = <&tlmm 50 0>;
-            # 仅修改 flags 值（最后一个数字/宏），不改动 GPIO 编号
-            sed -i "/$node {/,/};/{
-                /gpios =/s/GPIO_ACTIVE_HIGH/GPIO_ACTIVE_LOW/g
-                /gpios =/s/ [0-9]\+>$/ 1>/
-                /active-low;/!s/\($node {\)/\1\n\t\tactive-low;/
-            }" "$dts_file"
-            echo "  已修正 $node: GPIO flags → ACTIVE_LOW, 添加 active-low;"
-            fixed=1
-        fi
+    # 构建搜索目录列表（按优先级）
+    # 1. patches-6.* 目录 — NN6000 DTS 常以内核补丁形式存在
+    local patch_dir
+    patch_dir=$(find "$BUILD_DIR/target/linux/qualcommax" -maxdepth 1 -type d -name "patches-6.*" 2>/dev/null | head -1)
+    [ -n "$patch_dir" ] && search_dirs+=("$patch_dir")
+
+    # 2. files-6.* 内核覆层目录
+    local files_dir
+    files_dir=$(find "$BUILD_DIR/target/linux/qualcommax" -maxdepth 1 -type d -name "files-6.*" 2>/dev/null | head -1)
+    [ -n "$files_dir" ] && search_dirs+=("$files_dir")
+
+    # 3. dts/ 目录
+    [ -d "$BUILD_DIR/target/linux/qualcommax/dts" ] && search_dirs+=("$BUILD_DIR/target/linux/qualcommax/dts")
+
+    if [ ${#search_dirs[@]} -eq 0 ]; then
+        echo "警告: 未找到 Qualcommax DTS/patches 目录，跳过 LED GPIO 极性修正" >&2
+        return
+    fi
+
+    # 在所有搜索目录中找包含 status-red 的文件
+    for dir in "${search_dirs[@]}"; do
+        while IFS= read -r -d '' file; do
+            found_files+=("$file")
+        done < <(grep -rli "status-red" "$dir" --include="*.dts" --include="*.dtsi" --include="*.patch" 2>/dev/null)
+    done
+
+    if [ ${#found_files[@]} -eq 0 ]; then
+        echo "警告: 未找到包含 status-red 的 DTS/补丁文件，跳过 LED GPIO 极性修正" >&2
+        return
+    fi
+
+    # 去重
+    local unique_files=()
+    local f
+    for f in "${found_files[@]}"; do
+        local already=0
+        local u
+        for u in "${unique_files[@]}"; do
+            [ "$u" = "$f" ] && { already=1; break; }
+        done
+        [ "$already" -eq 0 ] && unique_files+=("$f")
+    done
+
+    echo "发现 ${#unique_files[@]} 个含 status-red 的文件:"
+    for f in "${unique_files[@]}"; do
+        echo "  → $(echo "$f" | sed "s|$BUILD_DIR/||")"
+    done
+
+    # 在每个文件中修正三个 LED 节点的 GPIO 极性
+    for dts_file in "${unique_files[@]}"; do
+        for node in status-red status-green status-blue; do
+            if grep -q "$node" "$dts_file"; then
+                sed -i "/$node {/,/};/{
+                    /gpios =/s/GPIO_ACTIVE_HIGH/GPIO_ACTIVE_LOW/g
+                    /gpios =/s/ [0-9]\+>$/ 1>/
+                    /active-low;/!s/\($node {\)/\1\n\t\tactive-low;/
+                }" "$dts_file"
+                echo "  ✅ 已修正 $node: GPIO_ACTIVE_HIGH → ACTIVE_LOW, +active-low;"
+                fixed=1
+            fi
+        done
     done
 
     if [ "$fixed" -eq 1 ]; then
-        echo "完成: NN6000 LED GPIO 极性已从 ACTIVE_HIGH 修正为 ACTIVE_LOW"
+        echo "完成: NN6000 LED GPIO 极性已从 ACTIVE_HIGH 修正为 ACTIVE_LOW（共 ${#unique_files[@]} 个文件）"
     else
         echo "警告: 未找到需要修正的 LED 节点" >&2
     fi

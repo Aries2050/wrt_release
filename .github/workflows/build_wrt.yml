@@ -285,16 +285,18 @@ jobs:
             echo "  ⚠️  构建产物 — 未在 build_dir 中找到 luci-mod-status 副本（可能已清理）"
           fi
 
-          PO_FILE=$(find "$BUILD_DIR/feeds/luci/modules/luci-mod-status/po" -name "luci-mod-status.po" -path "*/zh-cn/*" 2>/dev/null | head -1)
+          # ImmortalWRT/LuCI 简体中文翻译目录为 po/zh_Hans/（兼容 zh-cn/zh_CN）
+          PO_FILE=$(find "$BUILD_DIR/feeds/luci/modules/luci-mod-status/po" -type f -name "luci-mod-status.po" \( -path "*/zh_Hans/*" -o -path "*/zh-cn/*" -o -path "*/zh_CN/*" \) 2>/dev/null | head -1)
           if [ -n "$PO_FILE" ]; then
             if grep -q '"Custom Branch"' "$PO_FILE" && grep -q '"定制分支"' "$PO_FILE"; then
-              echo "  ✅ zh-cn .po — 已包含定制分支翻译"
+              echo "  ✅ zh_Hans .po — 已包含定制分支翻译 ($(basename "$(dirname "$PO_FILE")"))"
             else
-              echo "  ❌ zh-cn .po — 翻译条目不完整"
+              echo "  ❌ zh_Hans .po — 翻译条目不完整"
               ERRORS=$((ERRORS + 1))
             fi
           else
-            echo "  ⚠️  zh-cn .po — 未找到（可能无中文包）"
+            echo "  ❌ zh_Hans .po — 未找到简体中文翻译（set_build_signature 注入失败）"
+            ERRORS=$((ERRORS + 1))
           fi
 
           # ── 7. 补丁文件 ──

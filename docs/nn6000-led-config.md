@@ -263,6 +263,20 @@ led_status_blue: status-blue {
 
 修复后，`brightness=1` 正确点亮对应颜色的 LED。
 
+> **⚠️ 搜索路径说明（2026-08-01 更新）：**
+>
+> `fix_nn6000_led_label()` 早期版本只搜索 `files-6.18/` 和 `dts/` 目录，曾因上游结构变化
+> 找不到文件导致修正静默失效（`grep -rl status-red` 无结果）。现版本按优先级搜索三类目录，
+> 均支持 `.dts`/`.dtsi`/`.patch` 文件：
+>
+> 1. `target/linux/qualcommax/patches-6.*/` — 内核补丁目录（若 DTS 以补丁形式提供）
+> 2. `target/linux/qualcommax/files-6.*/` — 内核覆层目录
+> 3. `target/linux/qualcommax/dts/` — 原始 DTS 目录（`ipq6000-link.dtsi` 所在）
+>
+> 找到后对 `status-red`/`status-green`/`status-blue` 三个节点执行：
+> - `GPIO_ACTIVE_HIGH` → `GPIO_ACTIVE_LOW`（flags 值 `0` → `1`）
+> - 追加 `active-low;` 属性（部分内核 LED 驱动只认属性不认 flags）
+
 ### 3.5 ImmortalWRT 无自动恢复
 
 与原厂固件不同，ImmortalWRT **没有** `wan_net_stat.sh` 之类的周期性 LED 覆盖进程。
