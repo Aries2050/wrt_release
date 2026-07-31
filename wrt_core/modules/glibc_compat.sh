@@ -307,6 +307,9 @@ setup_glibc_compat() {
     if [ "$success_count" -eq 0 ]; then
         echo "⚠ 警告: glibc 兼容层未安装任何库，glibc-run 将不可用"
         echo "  可设置 DEBIAN_MIRROR 环境变量指定可用的镜像源"
+        _mark_fail "glibc_compat" "0/${total_count} packages" 2>/dev/null || true
+    else
+        _mark_ok "glibc_compat" "${success_count}/${total_count} packages" 2>/dev/null || true
     fi
 }
 
@@ -361,6 +364,7 @@ GLIBC_WRAPPER
 
     chmod +x "$wrapper_path"
     echo "已创建 glibc-run 包装脚本: $wrapper_path"
+    _mark_ok "glibc_wrapper" "installed" 2>/dev/null || true
 }
 
 # 创建 glibc 兼容层初始化脚本（用于系统启动时验证）
@@ -400,6 +404,7 @@ GLIBC_INIT
 
     chmod +x "$init_script_path"
     echo "已创建 glibc 初始化脚本: $init_script_path"
+    _mark_ok "glibc_init" "installed" 2>/dev/null || true
 }
 
 # 验证 glibc 兼容层是否已正确安装（仅警告，不阻断构建）

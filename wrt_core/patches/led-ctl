@@ -229,22 +229,22 @@ cmd_mode() {
     case "$1" in
         no-link)
             # WAN 断开 → 🔴 红灯常亮
-            _set_rgb "none" 255 "none" 0 "none" 0
+            _set_rgb "none" 1 "none" 0 "none" 0
             echo "[led-ctl] WAN 断开 (🔴红)"
             ;;
         dialing)
             # 正在拨号 → 🟡 黄灯快闪 (300ms)
-            _set_rgb "timer" 255 "timer" 255 "none" 0 300 300
+            _set_rgb "timer" 1 "timer" 1 "none" 0 300 300
             echo "[led-ctl] 拨号中 (🟡黄快闪)"
             ;;
         no-inet)
             # 已连接但无互联网 → 🟡 黄灯常亮
-            _set_rgb "none" 255 "none" 255 "none" 0
+            _set_rgb "none" 1 "none" 1 "none" 0
             echo "[led-ctl] 无互联网 (🟡黄)"
             ;;
         connected)
             # 互联网已连接 → 🟢 绿灯常亮
-            _set_rgb "none" 0 "none" 255 "none" 0
+            _set_rgb "none" 0 "none" 1 "none" 0
             echo "[led-ctl] 已连接 (🟢绿)"
             ;;
         active)

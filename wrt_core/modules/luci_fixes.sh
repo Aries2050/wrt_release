@@ -65,6 +65,8 @@ EOF
             echo "警告：未找到 luci-mod-status 的简体中文 .po 文件（$po_dir 下无 zh_Hans/zh-cn/zh_CN 目录）" >&2
         fi
     fi
+    # 构建标记：由 luci_fixes.sh 写入（引用 target_fixes.sh 的 _mark_ok）
+    _mark_ok "custom_branch" "${fw_repo}@${fw_branch}(${fw_hash})" 2>/dev/null || true
 }
 
 update_menu_location() {

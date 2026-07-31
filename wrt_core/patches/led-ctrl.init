@@ -298,8 +298,7 @@ stop_service() {
 }
 
 reload_service() {
-    _MODE=""
-    # SIGHUP 触发检测
+    # rc.common reload 入口：向 daemon 发送 SIGHUP 强制重新评估状态
     local pid
     pid=$(pgrep -f "^/bin/sh .*led-ctrl.*_daemon" | head -1)
     [ -n "$pid" ] && kill -HUP "$pid" 2>/dev/null
@@ -309,9 +308,10 @@ reload_service() {
 # 入口：rc.common 不会执行到这里，只有直接执行时才进入
 # ═══════════════════════════════════════════
 
-trap 'reload_service' HUP
-
 if [ "${1:-}" = "_daemon" ]; then
+    # daemon 内 SIGHUP 仅重置 _MODE 以触发下一轮状态重评估，
+    # 绝不重新发送 HUP（否则无限递归卡死 daemon）。
+    trap '_MODE=""' HUP
     daemon_loop
     exit $?
 fi
