@@ -7,12 +7,31 @@ set_build_signature() {
         # sed -i "s/(\(luciversion || ''\))/(\1) + (' compilation framework by ZqinKing, build by Aries')/g" "$file"
 
         # 插入定制分支信息行（固件版本与内核版本之间）
+        # 显示格式: <定制仓库>@<分支>(<哈希>) 基于 <上游仓库>@<分支>(<哈希>) 编译
+        # 定制仓库 = 本仓库 (wrt_release，包含全部定制脚本)；上游仓库 = REPO_URL 指向的固件源码
+        local fw_root="$BASE_PATH/.."
+        local fw_repo fw_branch fw_hash
+        fw_repo=$(git -C "$fw_root" remote get-url origin 2>/dev/null | sed -E 's|https?://[^/]+/||; s|\.git$||')
+        fw_branch=$(git -C "$fw_root" rev-parse --abbrev-ref HEAD 2>/dev/null)
+        fw_hash=$(git -C "$fw_root" rev-parse --short HEAD 2>/dev/null)
+        [ -n "$fw_repo" ] || fw_repo="wrt_release"
+        [ -n "$fw_branch" ] || fw_branch="unknown"
+        [ -n "$fw_hash" ] || fw_hash="unknown"
+
         local repo_short
         repo_short=$(echo "$REPO_URL" | sed -E 's|https?://[^/]+/||; s|\.git$||')
-        local branch_info="${repo_short} @ ${REPO_BRANCH}"
+        local branch_info="${fw_repo}@${fw_branch}(${fw_hash}) 基于 ${repo_short}@${REPO_BRANCH}"
         if [ "$COMMIT_HASH" != "none" ] && [ -n "$COMMIT_HASH" ]; then
-            branch_info="${branch_info} (${COMMIT_HASH:0:7})"
+            branch_info="${branch_info}(${COMMIT_HASH:0:7})"
+        else
+            # 未指定提交时，自动获取上游仓库当前 HEAD 哈希（stage_repo_checkout 已检出源码）
+            local up_head
+            up_head=$(git -C "$BUILD_DIR" rev-parse --short HEAD 2>/dev/null)
+            if [ -n "$up_head" ]; then
+                branch_info="${branch_info}(${up_head})"
+            fi
         fi
+        branch_info="${branch_info} 编译"
         # 转义 sed 替换字符串中的特殊字符
         branch_info=$(printf '%s\n' "$branch_info" | sed 's/[\/&]/\\&/g')
         sed -i "/_('Firmware Version')/a\\
@@ -25,8 +44,13 @@ set_build_signature() {
         fi
 
         # 添加中文翻译到 luci-mod-status 的 .po 文件
-        local po_file="$BUILD_DIR/feeds/luci/modules/luci-mod-status/po/zh-cn/luci-mod-status.po"
-        if [ -f "$po_file" ]; then
+        # ImmortalWRT/LuCI 简体中文翻译目录为 po/zh_Hans/（非 zh-cn）
+        local po_dir="$BUILD_DIR/feeds/luci/modules/luci-mod-status/po"
+        local po_file
+        po_file=$(find "$po_dir" -type f -name "luci-mod-status.po" \
+            \( -path "*/zh_Hans/*" -o -path "*/zh-cn/*" -o -path "*/zh_CN/*" \) 2>/dev/null | head -1)
+
+        if [ -n "$po_file" ]; then
             # 检查是否已存在翻译条目，避免重复插入
             if ! grep -q '"Custom Branch"' "$po_file"; then
                 cat >> "$po_file" <<EOF
@@ -35,7 +59,10 @@ set_build_signature() {
 msgid "Custom Branch"
 msgstr "定制分支"
 EOF
+                echo "已注入中文翻译到 $po_file"
             fi
+        else
+            echo "警告：未找到 luci-mod-status 的简体中文 .po 文件（$po_dir 下无 zh_Hans/zh-cn/zh_CN 目录）" >&2
         fi
     fi
 }

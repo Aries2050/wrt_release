@@ -38,6 +38,7 @@
 | 2026-07-31 | 合并 `upstream/main` (`4bf1cc0`) | 合并上游：恢复 quickstart 所有存储依赖；额外完全移除清理块 |
 | 2026-07-31 | LED 服务修复+亮度反转+CI验证 | 见第 13 节修复记录 |
 | 2026-07-31 | 定制分支信息显示 | 在 LuCI 概览页固件版本与内核版本之间插入「定制分支」行，显示编译所基于的仓库/分支/提交哈希 |
+| 2026-08-01 | 定制分支显示增强 | 双仓库格式 + zh_Hans 翻译路径修复 + 未指定提交时自动获取上游 HEAD 哈希 |
 
 ## 定制清单
 
@@ -96,7 +97,10 @@
 
 | 更改 | 提交 | 文件 | 说明 |
 |------|------|------|------|
-| LuCI 概览页插入「定制分支」行 | 当前 | `wrt_core/modules/luci_fixes.sh` → `set_build_signature()` | 在状态页「固件版本」与「内核版本」之间新增一行，显示编译所基于的上游仓库/分支及提交哈希；通过标准 LuCI i18n 添加中文翻译「定制分支」|
+| LuCI 概览页插入「定制分支」行 | 当前 | `wrt_core/modules/luci_fixes.sh` → `set_build_signature()` | 在状态页「固件版本」与「内核版本」之间新增一行，显示编译来源 |
+| 双仓库显示格式 | 当前 | `wrt_core/modules/luci_fixes.sh` | 显示 `Aries2050/wrt_release@main(哈希) 基于 VIKINGYFY/immortalwrt@main(哈希) 编译`：定制仓库（wrt_release）分支/哈希取自 `git remote/rev-parse`，上游仓库取自 `REPO_URL`/`REPO_BRANCH` |
+| 自动获取上游哈希 | 当前 | `wrt_core/modules/luci_fixes.sh` | 未指定 `COMMIT_HASH`（`none`/空）时，从 `stage_repo_checkout` 已检出的 `$BUILD_DIR` 读取上游 HEAD 哈希 |
+| 中文翻译注入 | 当前 | `wrt_core/modules/luci_fixes.sh` + CI | i18n key `_('Custom Branch')`，中文翻译写入 **`po/zh_Hans/`**（ImmortalWRT 简体中文目录，兼容 `zh-cn`/`zh_CN`） |
 
 ### 7. glibc 兼容层
 
@@ -215,6 +219,7 @@
 | 方案选择 | 采用 **方案 A**：依赖 DTS 修正（`target_fixes.sh` 中保留修正，并增加 `active-low;` 属性），源文件恢复标准逻辑（`brightness=1=亮`）；当前运行固件通过 SCP 部署软件反转版临时工作 |
 | `cmd_status` 颜色推断 | 推断条件写 `"255"` 但 `max_brightness=1`，sysfs 读回 `1`，颜色推断始终不显示。改为匹配 `"1"` |
 | CRLF 行尾破坏 shebang | 源文件为 Windows CRLF，`#!/bin/sh\r` 导致内核找不到解释器 → `not found`。通过 SCP 上传（而非管道）避免行尾转换 |
+| DTS 修正搜索路径错误 | `fix_nn6000_led_label` 只搜 `files-6.18/` 和 `dts/`，但 NN6000 DTS 实际以内核补丁形式存在于 `patches-6.18/` 中，修正从未生效。改为搜索 `patches-6.*/`、`files-6.*/`、`dts/`，支持 `.dts`/`.dtsi`/`.patch` 文件 |
 
 ### 15. CI 验证步骤
 
