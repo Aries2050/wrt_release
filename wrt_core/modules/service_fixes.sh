@@ -2,16 +2,19 @@
 # 服务包与运行时默认配置修正。
 
 update_adguardhome() {
-    local adguardhome_dir="$(get_custom_feed_package_dir)/luci-app-adguardhome"
-    local repo_url="https://github.com/ZqinKing/luci-app-adguardhome.git"
-
-    echo "正在更新 luci-app-adguardhome..."
-    rm -rf "$adguardhome_dir" 2>/dev/null
-
-    if ! git_retry clone --depth 1 "$repo_url" "$adguardhome_dir"; then
-        echo "错误：从 $repo_url 克隆 luci-app-adguardhome 仓库失败" >&2
-        exit 1
-    fi
+    # 2026-08-01: 切换回官方 openwrt/luci 源，不再使用 ZqinKing fork
+    # 保留函数体作为占位，如需再次启用自定义版本，取消下方注释
+    :
+    # local adguardhome_dir="$(get_custom_feed_package_dir)/luci-app-adguardhome"
+    # local repo_url="https://github.com/ZqinKing/luci-app-adguardhome.git"
+    #
+    # echo "正在更新 luci-app-adguardhome..."
+    # rm -rf "$adguardhome_dir" 2>/dev/null
+    #
+    # if ! git_retry clone --depth 1 "$repo_url" "$adguardhome_dir"; then
+    #     echo "错误：从 $repo_url 克隆 luci-app-adguardhome 仓库失败" >&2
+    #     exit 1
+    # fi
 }
 
 

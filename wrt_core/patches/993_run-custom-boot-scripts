@@ -1,50 +1,59 @@
 #!/bin/sh
 # 993_run-custom-boot-scripts — UCI defaults
 #
-# 每次刷机/升级后首次启动时，扫描 /etc/custom-boot.d/ 下以数字前缀
-# 命名的子目录，并按顺序执行每个子目录中的 apply.sh 脚本。
+# 每次刷机/升级后首次启动时，从根目录搜索 custom-boot.d 文件夹，
+# 对找到的每个文件夹，若其根下存在触发文件 .boot-enabled，
+# 则按数字前缀顺序执行子目录中的 apply.sh 脚本。
 #
-# ⚠ 安全限制：仅运行固定文件名 apply.sh，防止意外执行任意文件。
+# ⚠ 双重安全限制：
+#   1. 文件夹根下必须存在触发文件 .boot-enabled 才执行
+#   2. 仅运行固定文件名 apply.sh，防止意外执行任意文件
 #
-# 目录结构使用隔离设计，每项非公共更改独占一个子目录：
+# 目录结构：
 #
-#   /etc/custom-boot.d/
+#   /etc/custom-boot.d/          ← 可通过 find 搜索到的任意位置
+#   ├── .boot-enabled            ← ★ 触发文件（缺少则不执行）
 #   ├── 01-mac-spoof/
-#   │   └── apply.sh          ← 唯一可执行的入口脚本
+#   │   └── apply.sh             ← 唯一可执行的入口脚本
 #   ├── 02-dns-tweak/
 #   │   └── apply.sh
 #   └── 99-final/
 #       └── apply.sh
 #
-# 该目录位于 overlay 分区（sysupgrade 保留），用于存放每台路由器
-# 独有的非公共定制脚本。
-#
-# 使用方式（在设备端执行）：
-#   mkdir -p /etc/custom-boot.d/01-my-mod
-#   cat > /etc/custom-boot.d/01-my-mod/apply.sh << 'EOF'
+# 支持放在外部存储（USB 等）：
+#   mkdir -p /mnt/sda1/custom-boot.d/01-usb-init
+#   touch /mnt/sda1/custom-boot.d/.boot-enabled
+#   cat > /mnt/sda1/custom-boot.d/01-usb-init/apply.sh << 'EOF'
 #   #!/bin/sh
-#   echo "my router-specific setup"
+#   echo "USB device setup"
 #   EOF
-#   chmod +x /etc/custom-boot.d/01-my-mod/apply.sh
+#   chmod +x /mnt/sda1/custom-boot.d/01-usb-init/apply.sh
 #
 # ⚠ apply.sh 须为幂等（可重复安全执行）。
 
-CUSTOM_BOOT_DIR="/etc/custom-boot.d"
+CUSTOM_BOOT_DIR_NAME="custom-boot.d"
+TRIGGER_FILE=".boot-enabled"
 
-if [ ! -d "$CUSTOM_BOOT_DIR" ]; then
-    exit 0
-fi
-
-# 按字母顺序遍历每个子目录（数字前缀控制执行次序）
-for module_dir in "$CUSTOM_BOOT_DIR"/*/; do
-    [ -d "$module_dir" ] || continue
-
-    # 执行子目录中的 apply.sh（固定文件名，安全限制）
-    apply_script="$module_dir"apply.sh
-    if [ -f "$apply_script" ] && [ -x "$apply_script" ]; then
-        logger -t "custom-boot" "Running: $apply_script"
-        "$apply_script"
+# 从根分区搜索 custom-boot.d（限 4 层深度，覆盖 /etc, /mnt, /overlay 等）
+find / -maxdepth 4 -type d -name "$CUSTOM_BOOT_DIR_NAME" 2>/dev/null | sort | while read -r boot_dir; do
+    # 必须有触发文件才执行
+    if [ ! -f "$boot_dir/$TRIGGER_FILE" ]; then
+        logger -t "custom-boot" "跳过 $boot_dir（缺少 $TRIGGER_FILE）"
+        continue
     fi
+
+    logger -t "custom-boot" "发现: $boot_dir"
+
+    # 按字母顺序遍历每个子目录
+    for module_dir in "$boot_dir"/*/; do
+        [ -d "$module_dir" ] || continue
+
+        apply_script="${module_dir}apply.sh"
+        if [ -f "$apply_script" ] && [ -x "$apply_script" ]; then
+            logger -t "custom-boot" "Running: $apply_script"
+            "$apply_script"
+        fi
+    done
 done
 
 exit 0

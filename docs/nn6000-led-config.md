@@ -249,38 +249,64 @@ led_status_blue: status-blue {
     gpios = <&tlmm 69 GPIO_ACTIVE_HIGH>;  // ← 错误
 };
 
-// 修复后（改为 GPIO_ACTIVE_LOW 0x01）
+// 修复后（改为 GPIO_ACTIVE_LOW 0x01，并添加 active-low 属性）
 led_status_red: status-red {
+    active-low;
     gpios = <&tlmm 50 GPIO_ACTIVE_LOW>;   // ✓ 正确
 };
 led_status_green: status-green {
+    active-low;
     gpios = <&tlmm 70 GPIO_ACTIVE_LOW>;   // ✓ 正确
 };
 led_status_blue: status-blue {
+    active-low;
     gpios = <&tlmm 69 GPIO_ACTIVE_LOW>;   // ✓ 正确
 };
 ```
 
 修复后，`brightness=1` 正确点亮对应颜色的 LED。
 
-> **⚠️ 搜索路径说明（2026-08-01 更新）：**
+> **⚠️ 搜索路径与修复逻辑说明（2026-08-01 更新）：**
 >
 > `fix_nn6000_led_label()` 早期版本只搜索 `files-6.18/` 和 `dts/` 目录，曾因上游结构变化
 > 找不到文件导致修正静默失效（`grep -rl status-red` 无结果）。现版本按优先级搜索三类目录，
 > 均支持 `.dts`/`.dtsi`/`.patch` 文件：
 >
-> 1. `target/linux/qualcommax/patches-6.*/` — 内核补丁目录（若 DTS 以补丁形式提供）
-> 2. `target/linux/qualcommax/files-6.*/` — 内核覆层目录
+> 1. `target/linux/qualcommax/patches-[0-9]*/` — 内核补丁目录（版本无关，`patches-6.12` ~ `patches-7.0` 均匹配）
+> 2. `target/linux/qualcommax/files-[0-9]*/` — 内核覆层目录（同上，版本无关）
 > 3. `target/linux/qualcommax/dts/` — 原始 DTS 目录（`ipq6000-link.dtsi` 所在）
 >
-> 找到后对 `status-red`/`status-green`/`status-blue` 三个节点执行：
-> - `GPIO_ACTIVE_HIGH` → `GPIO_ACTIVE_LOW`（flags 值 `0` → `1`）
-> - 追加 `active-low;` 属性（部分内核 LED 驱动只认属性不认 flags）
+> **2026-08-01 修复**（详见 [CHANGES.md](./CHANGES.md) 第 13 节）：
+>
+> - **版本无关 glob**：将硬编码的 `patches-6.*` / `files-6.*` 改为 `patches-[0-9]*` / `files-[0-9]*`，
+>   内核升级到 7.x 或更高版本也不会静默失效。
+> - **两阶段 sed**：先修正 `GPIO_ACTIVE_HIGH` → `GPIO_ACTIVE_LOW`，再插入 `active-low;` 属性。
+>   两个阶段对 `.patch` 文件（行前缀 `+`）和 raw `.dts`/`.dtsi` 文件使用不同的匹配模式，
+>   确保补丁格式不被破坏。
+> - **移除死代码**：删除了永不匹配的 `s/ [0-9]\+>$/ 1>/` sed 模式（DTS 使用宏名而非数值）。
+> - **`active-low;` 作用说明**：NN6000 的 LED 由 `gpio-leds` 驱动管理（`compatible = "gpio-leds"`），
+>   该驱动的极性控制 **仅取决于 gpios flags**（`GPIO_ACTIVE_LOW`），不读取 `active-low;` 属性。
+>   保留该属性作为防御性编程（其他 LED 驱动如 PWM LED 的确会读取它），但对 NN6000 无实际功能影响。
 
 ### 3.5 ImmortalWRT 无自动恢复
 
 与原厂固件不同，ImmortalWRT **没有** `wan_net_stat.sh` 之类的周期性 LED 覆盖进程。
 手动写入 brightness 值后会一直保持，直到下次写入或重启。
+
+### 3.6 led-ctrl 定制服务修复记录（2026-08-01）
+
+本仓库提供的 `/etc/init.d/led-ctrl` 服务替代原厂的 `wan_net_stat.sh`，实现 5 状态 RGB LED 控制。
+以下为 2026-08-01 全面审查后发现并修复的问题：
+
+| 问题 | 严重度 | 影响 | 修复 |
+|---|---|---|---|
+| SIGHUP 无限递归 | 🔴 严重 | daemon 在 reload（WAN 状态变化）时向自身发 HUP，陷入无限信号处理循环，主状态机永远卡死 | daemon trap 改为仅重置 `_MODE=""`，`reload_service()` 仅负责向 daemon 发 HUP |
+| `.patch` 文件 `active-low;` 缺 `+` 前缀 | 🟠 高 | 若 DTS 以补丁形式提供，`fix_nn6000_led_label` 插入的行缺少 `+` 前缀，破坏补丁格式 | 两阶段 sed：区分 `+` 行与普通行分别处理 |
+| CI 验证遗漏 `.dtsi`/`.patch` | 🟡 中 | CI 只搜索 `dts/*.dts`，NN6000 的 `.dtsi` 和补丁文件永远找不到 | 改为搜索 `*.dts` / `*.dtsi` / `*.patch`，不限路径 |
+| `led-ctl` brightness 值不一致 | 🟡 中 | `cmd_mode` 使用 255，其他使用 1（内核钳位后无功能影响） | 统一为 1 |
+
+> **根本原因**：第 1 个问题（SIGHUP 递归）最可能导致 LED 状态不更新。daemon 在 WAN 接口
+> 状态变化时收到 reload → 陷入无限递归 → 主循环永远无法执行 → LED 状态冻结。
 
 ---
 
@@ -332,10 +358,12 @@ echo 0 > /sys/class/leds/red:status/brightness
 
 ### 4.4 利用 custom-boot 框架持久化
 
-设备支持 `/etc/custom-boot.d/` 开机自启脚本：
+设备支持 `/etc/custom-boot.d/` 开机自启脚本（`find / -maxdepth 4 -name "custom-boot.d"` 自动发现，
+需 `.boot-enabled` 触发文件）：
 
 ```bash
 mkdir -p /etc/custom-boot.d/01-led-fix
+touch /etc/custom-boot.d/.boot-enabled
 cat > /etc/custom-boot.d/01-led-fix/apply.sh << 'EOF'
 #!/bin/sh
 # 绿灯常亮（适用于 flags 已修复的 ImmortalWRT）
@@ -394,6 +422,9 @@ chmod +x /etc/custom-boot.d/01-led-fix/apply.sh
 
 | 日期 | 修订内容 |
 |---|---|
+| 2026-08-01 | **led-ctrl 服务全面修复**：修复 SIGHUP 无限递归（daemon reload 卡死）、
+| | `fix_nn6000_led_label` sed 对 `.patch` 文件兼容性、CI 验证遗漏 `.dtsi`/`.patch`、
+| | `led-ctl` brightness 不一致。详见 3.6 节。 |
 | 2026-07-19 | 重写全文。修正了错误结论（"标签反了"），更正为 GPIO 极性 flags 问题。
 | | 补充两个固件交叉验证的实测数据。增加原厂 `wan_net_stat.sh` 控制逻辑分析。 |
 | 2026-07-18 | 初版。包含有误的"标签反置"结论。 |

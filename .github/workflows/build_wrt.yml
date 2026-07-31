@@ -74,7 +74,6 @@ jobs:
           RAW_ADD_CONFIG_FRAGMENTS: ${{ inputs.add_fragments }}
           RAW_REMOVE_CONFIG_FRAGMENTS: ${{ inputs.remove_fragments }}
         run: |
-          sudo -E timedatectl set-timezone "Asia/Shanghai"
           export BUILD_DATE=$(TZ=UTC-8 date +"%y.%m.%d_%H.%M.%S")
           echo "BUILD_DATE=$BUILD_DATE" >> $GITHUB_ENV
           sanitize_cache_key_part() { printf '%s' "$1" | tr -c 'A-Za-z0-9_.-' '_'; }
@@ -199,6 +198,27 @@ jobs:
           echo "  模型: ${{ inputs.model }}"
           echo "============================================"
 
+          # ── 0. 构建标记（主动上报，优先信任）──
+          echo ""
+          echo "■ [构建标记]"
+          MARKS_DIR="$BUILD_DIR/.build_marks"
+          if [ -d "$MARKS_DIR" ] && [ "$(ls -A "$MARKS_DIR" 2>/dev/null)" ]; then
+            for mark in "$MARKS_DIR"/*; do
+              name=$(basename "$mark")
+              content=$(cat "$mark")
+              status="${content%% *}"
+              detail="${content#* }"
+              [ "$detail" = "$content" ] && detail=""
+              case "$status" in
+                ok) echo "  ✅ $name${detail:+ — $detail}" ;;
+                fail) echo "  ❌ $name${detail:+ — $detail}"; ERRORS=$((ERRORS + 1)) ;;
+                *) echo "  ⚠️ $name — $content" ;;
+              esac
+            done
+          else
+            echo "  ⚠️ .build_marks 目录为空或不存在（构建脚本未上报，使用文件检查兜底）"
+          fi
+
           # ── 1. LED 控制文件 ──
           echo ""
           echo "■ [LED控制]"
@@ -235,20 +255,34 @@ jobs:
             fi
           done
 
+          # ── 3.5. HDSentinel ──
+          echo ""
+          echo "■ [HDSentinel]"
+          HDS=$(find "$BUILD_DIR/files" -name "HDSentinel" -type f 2>/dev/null | head -1)
+          if [ -n "$HDS" ] && [ -x "$HDS" ]; then
+            echo "  ✅ HDSentinel — $(echo "$HDS" | sed "s|$BUILD_DIR/||") ($(stat -c%s "$HDS") bytes)"
+          else
+            echo "  ⚠️  HDSentinel — 未找到或不可执行（下载可能失败，已回退或跳过）"
+          fi
+
           # ── 4. NN6000 DTS LED 极性修正 ──
           echo ""
           echo "■ [DTS修正 — NN6000 LED极性]"
           if echo "${{ inputs.model }}" | grep -qi "nn6000"; then
-            DTS_FILE=$(find "$BUILD_DIR/target/linux/qualcommax" -name "*.dts" -path "*/dts/*" -exec grep -l "status-red" {} \; 2>/dev/null | head -1)
+            # 搜索 *.dts, *.dtsi, *.patch（DTS 可能在 dts/ 目录或 patches-*/ 补丁中）
+            DTS_FILE=$(find "$BUILD_DIR/target/linux/qualcommax" \
+              \( -name "*.dts" -o -name "*.dtsi" -o -name "*.patch" \) \
+              -exec grep -l "status-red" {} \; 2>/dev/null | head -1)
             if [ -n "$DTS_FILE" ]; then
               if grep -q "GPIO_ACTIVE_LOW\|active-low" "$DTS_FILE" 2>/dev/null; then
-                echo "  ✅ LED 极性已修正为 GPIO_ACTIVE_LOW"
+                echo "  ✅ LED 极性已修正为 GPIO_ACTIVE_LOW ($(echo "$DTS_FILE" | sed "s|$BUILD_DIR/||"))"
               else
                 echo "  ❌ LED 极性未修正（仍为 GPIO_ACTIVE_HIGH）"
                 ERRORS=$((ERRORS + 1))
               fi
             else
-              echo "  ⚠️  未找到 NN6000 DTS 文件"
+              echo "  ❌ 未找到含 status-red 的 DTS/补丁文件（已搜索 dts/, patches-*/, files-*/）"
+              ERRORS=$((ERRORS + 1))
             fi
           else
             echo "  — 非 NN6000 模型，跳过"

@@ -1,6 +1,6 @@
 # 本地定制更改概览
 
-> **最后更新**: 2026-07-31
+> **最后更新**: 2026-08-01
 
 本仓库源自 [ZqinKing/wrt_release](https://github.com/ZqinKing/wrt_release)，在此基础上有以下本地定制。
 
@@ -36,10 +36,14 @@
 | 2026-07-19 | `ea4dd1c`–`99ae05c` | 固件特征指纹 + 文档修正 |
 | 2026-07-19 | `0f5325b` | RGB LED 互联网状态指示灯（5 状态服务方案） |
 | 2026-07-31 | 合并 `upstream/main` (`4bf1cc0`) | 合并上游：恢复 quickstart 所有存储依赖；额外完全移除清理块 |
-| 2026-07-31 | LED 服务修复+亮度反转+CI验证 | 见第 13 节修复记录 |
-| 2026-07-31 | `feat/add-usb-wifi-drivers` | 新增 USB WiFi 驱动：RT3070（`kmod-rt2800-usb`） |
+| 2026-07-31 | LED 服务修复+亮度反转+CI验证 | 见第 14 节修复记录 |
 | 2026-07-31 | 定制分支信息显示 | 在 LuCI 概览页固件版本与内核版本之间插入「定制分支」行，显示编译所基于的仓库/分支/提交哈希 |
 | 2026-08-01 | 定制分支显示增强 | 双仓库格式 + zh_Hans 翻译路径修复 + 未指定提交时自动获取上游 HEAD 哈希 |
+| 2026-08-01 | LED 服务全面修复 | SIGHUP 递归、read -d '' 静默失效、文件名过滤防误伤、glob 适配 7.x 内核，详见第 14 节 |
+| 2026-08-01 | HDSentinel 下载验证 | 大小+zip 格式双重校验，防 HTML 错误页冒充有效下载，详见第 10 节 |
+| 2026-08-01 | luci-app-adguardhome 切回官方源 | 注释 ZqinKing fork 替换逻辑，改用 openwrt/luci 官方版本 |
+| 2026-08-01 | sysupgrade.conf 覆写修复 | `add_backup_info_to_sysupgrade` 中 `>` 改为 `>>`，防止清除默认备份路径 |
+| 2026-08-01 | 自定义启动脚本增强 + 管理工具 | `find /` 搜索 + `.boot-enabled` 触发文件；新增 `scripts/setup_custom_boot.sh` 交互式/命令行创建任务 |
 
 ## 定制清单
 
@@ -93,7 +97,6 @@
 | `openvpn-openssl` + `luci-app-openvpn-server`（DCO / FRAGMENT / LZ4） | `d100602` | OpenVPN 服务端 |
 | `tailscale` + `luci-app-tailscale` | `d100602` | Tailscale 虚拟组网（从 custom_feed 拉取） |
 | `jq` | `707f49e` | JSON 命令行处理工具 |
-| `kmod-rt2800-usb` / `rt2800-usb-firmware` | `feat/add-usb-wifi-drivers` | RT3070/Ralink RT2870 USB 无线网卡驱动和固件 |
 
 ### 6. 定制分支信息行
 
@@ -139,6 +142,7 @@
 | 自动下载 HDSentinel 并注入固件 | `deb75fa`, `76408a3` | `wrt_core/modules/target_fixes.sh` | 从 `hdsentinel.com` 按架构下载，解压后通过 `BUILD_DIR/files/bin/` 注入根文件系统 |
 | 本地回退包 | `deb75fa` | `wrt_core/prebuilt_packages/hdsentinel/*.zip` | 下载失败时使用仓库内本地副本 |
 | 设为全局命令和环境变量 | `76408a3` | `wrt_core/modules/target_fixes.sh` | 创建 `/usr/bin/hdsentinel` 包装脚本（自动调用 `glibc-run`）及 `/etc/profile.d/hdsentinel.sh` |
+| 下载文件有效性验证 | 2026-08-01 | `wrt_core/modules/target_fixes.sh` | 大小 < 512KB 或非有效 zip → 自动回退本地副本；三阶段 `use_local` 标志统一回退入口 |
 
 ### 11. 自动集成预编译包（已移除）
 
@@ -148,8 +152,13 @@
 
 | 更改 | 提交 | 文件 | 说明 |
 |------|------|------|------|
-| 新增自定义启动脚本功能 | `b72c741` | `wrt_core/patches/993_run-custom-boot-scripts` | 每次刷机/升级后首次启动，自动扫描 `/etc/custom-boot.d/` 下按数字前缀命名的子目录，并执行每个子目录中的 `apply.sh` 脚本（安全限制：固定文件名，防止意外执行任意文件）。目录隔离设计，每项非公共更改独占一个子目录（如 `01-mac-spoof/`、`02-dns-tweak/`）。该目录位于 overlay 分区（`sysupgrade` 保留） |
+| 新增自定义启动脚本功能 | `b72c741` | `wrt_core/patches/993_run-custom-boot-scripts` | 刷机/升级后首次启动时执行一次（UCI defaults 机制），日常重启不重复执行。`find /` 搜索 `custom-boot.d`，需 `.boot-enabled` 触发文件 |
+| 加入 sysupgrade 备份清单 | `b72c741` | `wrt_core/modules/target_fixes.sh` | `/etc/custom-boot.d/` 已加入 `sysupgrade.conf` |
+| 2026-08-01 增强 | 当前 | `wrt_core/patches/993_run-custom-boot-scripts` | 从硬编码 `/etc/` 改为 `find / -maxdepth 4` 搜索（支持 USB 等外部存储）；新增 `.boot-enabled` 触发文件机制 |
 | 加入 sysupgrade 备份清单 | `b72c741` | `wrt_core/modules/target_fixes.sh` | `/etc/custom-boot.d/` 已加入 `sysupgrade.conf`，与其他保留路径（AdGuardHome、easytier、lucky）一致 |
+| 2026-08-01 修复 `>` → `>>` | 当前 | `wrt_core/modules/target_fixes.sh` | `add_backup_info_to_sysupgrade()` 原先用 `>` 覆写整个 `sysupgrade.conf`，改为 `>>` 追加，保留默认内容 |
+
+> **持久化说明**：`/etc/custom-boot.d/` 位于 overlay 分区。sysupgrade 两种模式（保留/不保留设置）均通过 `sysupgrade.conf` 保留该目录。唯一丢失场景是恢复出厂设置（`firstboot`）——这是预期行为。升级后 UCI defaults 会重新执行所有 `apply.sh`，因此脚本**必须幂等**。
 
 ### 13. 代码质量修复
 
@@ -175,6 +184,7 @@
 | qBittorrent 预置固件（内置预编译 IPK） | `3f29ec7` | `wrt_core/modules/target_fixes.sh` + `wrt_core/update.sh` | 新增 `install_prebuilt_ipks()`，解压 IPK 到 `BUILD_DIR/files/` |
 | CI 安装 7zip/binutils 修复解压 | `d2a8084` | `.github/workflows/build_wrt.yml` / `release_wrt.yml` | CI 安装 `binutils`(ar) 和 `7zip`(7zz) |
 | install_prebuilt_ipks 解压兜底 | `cb00024` | `wrt_core/modules/target_fixes.sh` | 支持 gzip+tarball 格式 IPK；后移除已无用的 `ar` 兜底 |
+| sysupgrade.conf 覆写修复 | 2026-08-01 | `wrt_core/modules/target_fixes.sh` → `add_backup_info_to_sysupgrade()` | `cat >` 改为 `cat >>`，防止清除 sysupgrade.conf 默认备份路径 |
 
 ### 14. RGB LED 互联网状态指示灯（5 状态服务方案）
 
@@ -222,17 +232,28 @@
 | `cmd_status` 颜色推断 | 推断条件写 `"255"` 但 `max_brightness=1`，sysfs 读回 `1`，颜色推断始终不显示。改为匹配 `"1"` |
 | CRLF 行尾破坏 shebang | 源文件为 Windows CRLF，`#!/bin/sh\r` 导致内核找不到解释器 → `not found`。通过 SCP 上传（而非管道）避免行尾转换 |
 | DTS 修正搜索路径错误 | `fix_nn6000_led_label` 只搜 `files-6.18/` 和 `dts/`，但 NN6000 DTS 实际以内核补丁形式存在于 `patches-6.18/` 中，修正从未生效。改为搜索 `patches-6.*/`、`files-6.*/`、`dts/`，支持 `.dts`/`.dtsi`/`.patch` 文件 |
+| **2026-08-01 全面修复** | |
+| SIGHUP 无限递归 | daemon trap 触发 `reload_service` 再向自身发 HUP → 无限递归卡死。trap 改为仅重置 `_MODE=""` |
+| `read -d ''` 静默失效 | `grep -l` 输出为 newline 非 NUL，`read -d ''` 导致 found_files 永远为空，函数直接 return。改为 `read -r` |
+| 误伤其他 IPQ60xx 设备 | `grep -rl "status-red"` 匹配了 `ipq6010-philips.dtsi` 和 `ipq8070-rm2-6.dts`（GPIO 完全不同）。添加文件名过滤 `*link*|*nn6000*` |
+| glob 硬编码 6.x | `patches-6.*`/`files-6.*` 到 7.x 内核静默失效。改为 `patches-[0-9]*`/`files-[0-9]*` |
+| `.patch` 文件 `active-low;` 缺 `+` 前缀 | 两阶段 sed：对 `+` 行和普通行分别处理 |
+| `led-ctl` brightness 不一致 | `cmd_mode` 使用 255 而其他使用 1，统一为 1 |
 
 ### 15. CI 验证步骤
 
 | 更改 | 文件 | 说明 |
 |------|------|------|
-| 新增 Verify Customizations | `.github/workflows/build_wrt.yml` / `release_wrt.yml` | Build Firmware 后检查 7 项定制是否生效 |
+| 新增 Verify Customizations | `.github/workflows/build_wrt.yml` / `release_wrt.yml` | Build Firmware 后检查定制是否生效 |
+| 2026-08-01 DTS 搜索增强 | 同上 | 搜索 `*.dts` / `*.dtsi` / `*.patch` 替代仅 `*.dts`，不限路径 |
+| 2026-08-01 HDSentinel 检查 | 同上 | 新增 HDSentinel 可执行文件存在性检查（soft check） |
+| 2026-08-01 构建标记系统 | 同上 + `wrt_core/modules/*.sh` | 新增 24 个构建标记（`$BUILD_DIR/.build_marks/`），各定制步骤主动上报成功/失败，CI 优先读取标记而非 grep/find 猜测 |
 
 **验证项：**
 1. LED 控制文件（`led-ctl`、`led-ctrl.init`、`994_led_config`）
 2. UCI defaults（Argon 主题、系统设置、WiFi 配置器、自定义启动框架）
 3. 诊断脚本（`tempinfo`、`cpuusage`、`hnatusage`、`nss_diag.sh`）
+3.5. HDSentinel 硬盘检测工具（文件存在 + 可执行）
 4. DTS LED 极性修正（仅 NN6000 模型）
 5. 补丁部署
 6. 预编译 IPK 可用性
