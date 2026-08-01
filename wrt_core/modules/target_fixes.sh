@@ -36,10 +36,10 @@ fix_default_set() {
     fi
 
     local mark_uci=0
-    install -Dm544 "$BASE_PATH/patches/990_set_argon_primary" "$BUILD_DIR/package/base-files/files/etc/uci-defaults/990_set_argon_primary" && { _mark_ok "file_990_argon"; ((mark_uci++)); } || _mark_fail "file_990_argon" "install failed"
-    install -Dm544 "$BASE_PATH/patches/991_custom_settings" "$BUILD_DIR/package/base-files/files/etc/uci-defaults/991_custom_settings" && { _mark_ok "file_991_settings"; ((mark_uci++)); } || _mark_fail "file_991_settings" "install failed"
-    install -Dm544 "$BASE_PATH/patches/992_set-wifi-uci.sh" "$BUILD_DIR/package/base-files/files/etc/uci-defaults/992_set-wifi-uci.sh" && { _mark_ok "file_992_wifi"; ((mark_uci++)); } || _mark_fail "file_992_wifi" "install failed"
-    install -Dm544 "$BASE_PATH/patches/993_run-custom-boot-scripts" "$BUILD_DIR/package/base-files/files/etc/uci-defaults/993_run-custom-boot-scripts" && { _mark_ok "file_993_custom_boot"; ((mark_uci++)); } || _mark_fail "file_993_custom_boot" "install failed"
+    install -Dm544 "$BASE_PATH/patches/990_set_argon_primary" "$BUILD_DIR/package/base-files/files/etc/uci-defaults/990_set_argon_primary" && { ((++mark_uci)); _mark_ok "file_990_argon"; } || _mark_fail "file_990_argon" "install failed"
+    install -Dm544 "$BASE_PATH/patches/991_custom_settings" "$BUILD_DIR/package/base-files/files/etc/uci-defaults/991_custom_settings" && { ((++mark_uci)); _mark_ok "file_991_settings"; } || _mark_fail "file_991_settings" "install failed"
+    install -Dm544 "$BASE_PATH/patches/992_set-wifi-uci.sh" "$BUILD_DIR/package/base-files/files/etc/uci-defaults/992_set-wifi-uci.sh" && { ((++mark_uci)); _mark_ok "file_992_wifi"; } || _mark_fail "file_992_wifi" "install failed"
+    install -Dm544 "$BASE_PATH/patches/993_run-custom-boot-scripts" "$BUILD_DIR/package/base-files/files/etc/uci-defaults/993_run-custom-boot-scripts" && { ((++mark_uci)); _mark_ok "file_993_custom_boot"; } || _mark_fail "file_993_custom_boot" "install failed"
     _mark_ok "uci_defaults" "${mark_uci}/4 files"
 
     if [ -f "$BUILD_DIR/package/emortal/autocore/files/tempinfo" ]; then
@@ -188,7 +188,7 @@ fix_nn6000_led_label() {
     for dir in "${search_dirs[@]}"; do
         while read -r file; do
             found_files+=("$file")
-        done < <(grep -rli "status-red" "$dir" --include="*.dts" --include="*.dtsi" --include="*.patch" 2>/dev/null)
+        done < <(grep -rli "status-red" "$dir" --include="*.dts" --include="*.dtsi" --include="*.patch" 2>/dev/null || true)
     done
 
     # 过滤：仅保留 Link/NN6000 设备文件，避免误伤其他 IPQ60xx 设备
@@ -615,23 +615,23 @@ install_led_control() {
 
     # 安装 led-ctl CLI 调试工具到 /sbin/
     install -Dm755 "$BASE_PATH/patches/led-ctl" "$BUILD_DIR/package/base-files/files/sbin/led-ctl" && {
+        ((++count))
         echo "  → /sbin/led-ctl（CLI 调试工具）"
         _mark_ok "file_led-ctl"
-        ((count++))
     } || _mark_fail "file_led-ctl" "install failed"
 
     # 安装 led-ctrl 互联网监测服务
     install -Dm755 "$BASE_PATH/patches/led-ctrl.init" "$BUILD_DIR/package/base-files/files/etc/init.d/led-ctrl" && {
+        ((++count))
         echo "  → /etc/init.d/led-ctrl（互联网监测服务）"
         _mark_ok "file_led-ctrl.init"
-        ((count++))
     } || _mark_fail "file_led-ctrl.init" "install failed"
 
     # 安装 UCI defaults 首次启动配置
     install -Dm544 "$BASE_PATH/patches/994_led_config" "$BUILD_DIR/package/base-files/files/etc/uci-defaults/994_led_config" && {
+        ((++count))
         echo "  → /etc/uci-defaults/994_led_config"
         _mark_ok "file_994_led_config"
-        ((count++))
     } || _mark_fail "file_994_led_config" "install failed"
 
     echo "完成: led-ctrl 服务 + UCI LED 条目已安装"

@@ -174,11 +174,12 @@ set_mode() {
 #
 # 外部状态（WAN 物理/链路层）→ 内部状态（连通性/活动）
 #
-#   no-link ← WAN down
+#   启动默认 → connected (green solid)
+#   WAN down → no-link (red solid)
 #      ↓ WAN pending
-#   dialing
+#   dialing (yellow blink)
 #      ↓ WAN up
-#   ┌───→ no-inet ← ping 不通
+#   ┌───→ no-inet (yellow solid) ← ping 不通
 #   │        ↓ ping 通
 #   │    connected (green solid)
 #   │     ↕ 有数据活动 / 连续空闲
@@ -189,7 +190,7 @@ daemon_loop() {
     local wan_state
 
     _MODE=""
-    set_mode "no-link"
+    set_mode "connected"
 
     while true; do
         wan_state=$(get_wan_state)
