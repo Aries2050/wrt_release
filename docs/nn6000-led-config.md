@@ -2,7 +2,7 @@
 
 > **硬件平台**: Qualcomm IPQ6018/IPQ6000
 > **适用固件**: 原厂 Chaos Calmer 15.05.1 / ImmortalWRT SNAPSHOT
-> **最后更新**: 2026-07-31
+> **最后更新**: 2026-08-01
 >
 > **定制 LED 服务**: 本仓库实现了自定义 `/etc/init.d/led-ctrl` 5 状态 RGB LED 服务，
 > 见 `wrt_core/patches/led-ctrl.init` 和 `wrt_core/patches/led-ctl`。
@@ -278,6 +278,10 @@ led_status_blue: status-blue {
 >
 > **2026-08-01 修复**（详见 [CHANGES.md](./CHANGES.md) 第 13 节）：
 >
+> - **`read -d ''` 修复**：原始代码使用 `read -d ''`（NUL 分隔符）读取 `grep -l`（newline 分隔）的输出，
+>   导致 `found_files` 数组永远为空，函数静默跳过所有修正。改为 `read -r`（newline 分隔）。
+> - **文件名过滤**：原 `grep -rl "status-red"` 匹配所有含红色状态灯的设备（如 `ipq6010-philips.dtsi`、
+>   `ipq8070-rm2-6.dts`），现在仅保留文件名含 `link`/`nn6000` 的文件，避免误伤其他 IPQ60xx 设备。
 > - **版本无关 glob**：将硬编码的 `patches-6.*` / `files-6.*` 改为 `patches-[0-9]*` / `files-[0-9]*`，
 >   内核升级到 7.x 或更高版本也不会静默失效。
 > - **两阶段 sed**：先修正 `GPIO_ACTIVE_HIGH` → `GPIO_ACTIVE_LOW`，再插入 `active-low;` 属性。
@@ -300,13 +304,21 @@ led_status_blue: status-blue {
 
 | 问题 | 严重度 | 影响 | 修复 |
 |---|---|---|---|
-| SIGHUP 无限递归 | 🔴 严重 | daemon 在 reload（WAN 状态变化）时向自身发 HUP，陷入无限信号处理循环，主状态机永远卡死 | daemon trap 改为仅重置 `_MODE=""`，`reload_service()` 仅负责向 daemon 发 HUP |
-| `.patch` 文件 `active-low;` 缺 `+` 前缀 | 🟠 高 | 若 DTS 以补丁形式提供，`fix_nn6000_led_label` 插入的行缺少 `+` 前缀，破坏补丁格式 | 两阶段 sed：区分 `+` 行与普通行分别处理 |
-| CI 验证遗漏 `.dtsi`/`.patch` | 🟡 中 | CI 只搜索 `dts/*.dts`，NN6000 的 `.dtsi` 和补丁文件永远找不到 | 改为搜索 `*.dts` / `*.dtsi` / `*.patch`，不限路径 |
-| `led-ctl` brightness 值不一致 | 🟡 中 | `cmd_mode` 使用 255，其他使用 1（内核钳位后无功能影响） | 统一为 1 |
+| `read -d ''` 导致 DTS 修正从未生效 | 🔴 致命 | `grep -l` 输出为 newline 分隔，`read -d ''` 等待 NUL 字节，导致 `found_files` 数组永远为空，整个 `fix_nn6000_led_label` 静默跳过 | 改为 `read -r`（newline 分隔） |
+| SIGHUP 无限递归 | 🔴 严重 | daemon 在 reload 时向自身发 HUP，陷入无限信号处理循环，主状态机永远卡死 | daemon trap 改为仅重置 `_MODE=""`，`reload_service()` 仅负责向 daemon 发 HUP |
+| 误伤其他 IPQ60xx 设备 DTS | 🟠 高 | `grep -rl "status-red"` 匹配 philips、rm2 等设备，修改其 LED 极性可能破坏未知硬件的 LED 行为 | 添加文件名过滤 `*link*\|*nn6000*`，仅处理 NN6000/Link 文件 |
+| `.patch` 文件 `active-low;` 缺 `+` 前缀 | 🟠 高 | 若 DTS 以补丁形式提供，插入的行缺少 `+` 前缀，破坏补丁格式 | 两阶段 sed：区分 `+` 行与普通行分别处理 |
+| CI 验证了错误的文件 | 🟡 中 | `find \| head -1` 字母序选中 `ipq6010-philips.dtsi`，从未验证实际 NN6000 文件 | 4a. 独立查找 `*link*`/`*nn6000*` 文件并验证；4b. 精确检查其他设备 LED 节点是否被误伤 |
+| 硬编码内核版本 `patches-6.*` | 🟡 中 | 内核升级到 7.x 后 glob 静默失效 | 改为 `patches-[0-9]*` / `files-[0-9]*` |
+| `((count++))` 导致 install 标记误报失败 | 🟡 中 | `count=0` 时 `((count++))` 返回 exit 1，触发 `|| _mark_fail` 覆盖已写入的 OK 标记（`file_led-ctl`、`file_990_argon` 均被误报） | 改为 `((++count))`（前自增），并将 `_mark_ok` 移到 block 末尾作为返回值 |
+| 非致命 grep 错误噪音 | 🟢 低 | `set -o errtrace` 下 grep 无匹配返回 1 触发 ERR trap，日志中出现 `Error occurred at line...` | `grep ... || true` 抑制 |
+| 启动默认红灯 | 🟢 低 | 服务启动时 `set_mode "no-link"` 显示红灯，不符用户预期 | 改为 `set_mode "connected"`（绿灯常亮） |
 
-> **根本原因**：第 1 个问题（SIGHUP 递归）最可能导致 LED 状态不更新。daemon 在 WAN 接口
-> 状态变化时收到 reload → 陷入无限递归 → 主循环永远无法执行 → LED 状态冻结。
+> **根本原因**：第 1 个问题（`read -d ''`）是 `fix_nn6000_led_label` **从未生效**的根因 —
+> 它导致 found_files 数组为空，函数直接 return。这也解释了为什么之前的 CI 构建日志中
+> LED 修正始终不出现，以及为什么问题 3（误伤）在上游 DTS 中未被发现。
+> 第 2 个问题（SIGHUP 递归）导致 led-ctrl daemon 在 WAN 状态变化后卡死。
+> 第 8 个问题（`((count++))`）导致 `file_led-ctl` 和 `file_990_argon` 的 install 被误报为失败。
 
 ---
 
@@ -422,9 +434,11 @@ chmod +x /etc/custom-boot.d/01-led-fix/apply.sh
 
 | 日期 | 修订内容 |
 |---|---|
-| 2026-08-01 | **led-ctrl 服务全面修复**：修复 SIGHUP 无限递归（daemon reload 卡死）、
-| | `fix_nn6000_led_label` sed 对 `.patch` 文件兼容性、CI 验证遗漏 `.dtsi`/`.patch`、
-| | `led-ctl` brightness 不一致。详见 3.6 节。 |
+| 2026-08-01 | **全面审查与修复**（详见 3.4、3.6 节）：
+| | 致命：`read -d ''` → `read -r`（DTS 修正从未生效的根因），SIGHUP 递归卡死 daemon
+| | 高：文件名过滤防误伤 philips/rm2 设备，`.patch` 格式兼容
+| | 中：CI 独立验证 + 精确误伤检查（sed 节点内），内核版本无关 glob，`((count++))` install 标记修复
+| | 低：led-ctl brightness 统一，grep 噪音抑制，启动默认改绿灯常亮 |
 | 2026-07-19 | 重写全文。修正了错误结论（"标签反了"），更正为 GPIO 极性 flags 问题。
 | | 补充两个固件交叉验证的实测数据。增加原厂 `wan_net_stat.sh` 控制逻辑分析。 |
 | 2026-07-18 | 初版。包含有误的"标签反置"结论。 |

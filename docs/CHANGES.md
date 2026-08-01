@@ -235,17 +235,22 @@
 | **2026-08-01 全面修复** | |
 | SIGHUP 无限递归 | daemon trap 触发 `reload_service` 再向自身发 HUP → 无限递归卡死。trap 改为仅重置 `_MODE=""` |
 | `read -d ''` 静默失效 | `grep -l` 输出为 newline 非 NUL，`read -d ''` 导致 found_files 永远为空，函数直接 return。改为 `read -r` |
-| 误伤其他 IPQ60xx 设备 | `grep -rl "status-red"` 匹配了 `ipq6010-philips.dtsi` 和 `ipq8070-rm2-6.dts`（GPIO 完全不同）。添加文件名过滤 `*link*|*nn6000*` |
+| 误伤其他 IPQ60xx 设备 | `grep -rl "status-red"` 匹配了 `ipq6010-philips.dtsi` 和 `ipq8070-rm2-6.dts`（GPIO 完全不同）。添加文件名过滤 `*link*\|*nn6000*` |
 | glob 硬编码 6.x | `patches-6.*`/`files-6.*` 到 7.x 内核静默失效。改为 `patches-[0-9]*`/`files-[0-9]*` |
 | `.patch` 文件 `active-low;` 缺 `+` 前缀 | 两阶段 sed：对 `+` 行和普通行分别处理 |
 | `led-ctl` brightness 不一致 | `cmd_mode` 使用 255 而其他使用 1，统一为 1 |
+| 移除死代码 sed 模式 | `s/ [0-9]\+>$/ 1>/` 永不匹配（DTS 使用宏名而非数值），已删除 |
+| `((count++))` 导致 install 标记误报 | `count=0` 时 `((0++))` 返回 exit 1，触发 `\|\| _mark_fail` 覆盖已写入的 OK。改为 `((++count))`（前自增）+ `_mark_ok` 移到 block 末尾 |
+| grep ERR trap 噪音 | `set -o errtrace` 下 grep 无匹配返回 1 触发 error_handler。加 `\|\| true` 抑制 |
+| CI 独立 DTS 验证 | 4a. 独立查找 `*link*`/`*nn6000*` 验证 GPIO_ACTIVE_LOW；4b. `sed -n '/status-red {/,/};/{ /gpios =.*GPIO_ACTIVE_LOW/p }'` 精确检查其他设备 LED 节点是否被误伤 |
+| 启动默认改为绿灯常亮 | `daemon_loop` 初始 `set_mode "no-link"`（红灯）→ `set_mode "connected"`（绿灯），状态机后续根据实际网络状态调整 |
 
 ### 15. CI 验证步骤
 
 | 更改 | 文件 | 说明 |
 |------|------|------|
 | 新增 Verify Customizations | `.github/workflows/build_wrt.yml` / `release_wrt.yml` | Build Firmware 后检查定制是否生效 |
-| 2026-08-01 DTS 搜索增强 | 同上 | 搜索 `*.dts` / `*.dtsi` / `*.patch` 替代仅 `*.dts`，不限路径 |
+| 2026-08-01 DTS 独立验证 + 误伤检查 | 同上 | 4a. 文件名过滤查找 Link/NN6000 DTS 并验证 GPIO_ACTIVE_LOW；4b. 精确 sed 检查非 NN6000 文件的 LED 节点是否被误改 |
 | 2026-08-01 HDSentinel 检查 | 同上 | 新增 HDSentinel 可执行文件存在性检查（soft check） |
 | 2026-08-01 构建标记系统 | 同上 + `wrt_core/modules/*.sh` | 新增 24 个构建标记（`$BUILD_DIR/.build_marks/`），各定制步骤主动上报成功/失败，CI 优先读取标记而非 grep/find 猜测 |
 

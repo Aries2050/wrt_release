@@ -225,20 +225,40 @@ jobs:
           echo ""
           echo "■ [DTS修正 — NN6000 LED极性]"
           if echo "${{ inputs.model }}" | grep -qi "nn6000"; then
-            # 搜索 *.dts, *.dtsi, *.patch（DTS 可能在 dts/ 目录或 patches-*/ 补丁中）
-            DTS_FILE=$(find "$BUILD_DIR/target/linux/qualcommax" \
-              \( -name "*.dts" -o -name "*.dtsi" -o -name "*.patch" \) \
-              -exec grep -l "status-red" {} \; 2>/dev/null | head -1)
-            if [ -n "$DTS_FILE" ]; then
-              if grep -q "GPIO_ACTIVE_LOW\|active-low" "$DTS_FILE" 2>/dev/null; then
-                echo "  ✅ LED 极性已修正为 GPIO_ACTIVE_LOW ($(echo "$DTS_FILE" | sed "s|$BUILD_DIR/||"))"
+            # 4a. 独立验证 Link/NN6000 DTS
+            NN_DTS=$(find "$BUILD_DIR/target/linux/qualcommax" \
+              \( -name "*link*.dts" -o -name "*link*.dtsi" -o -name "*link*.patch" \
+                 -o -name "*nn6000*.dts" -o -name "*nn6000*.dtsi" -o -name "*nn6000*.patch" \) \
+              2>/dev/null | head -1)
+            if [ -n "$NN_DTS" ]; then
+              if grep -q "GPIO_ACTIVE_LOW" "$NN_DTS" 2>/dev/null; then
+                echo "  ✅ NN6000 DTS 已修正为 GPIO_ACTIVE_LOW ($(echo "$NN_DTS" | sed "s|$BUILD_DIR/||"))"
               else
-                echo "  ❌ LED 极性未修正（仍为 GPIO_ACTIVE_HIGH）"
+                echo "  ❌ NN6000 DTS 未修正！仍为 GPIO_ACTIVE_HIGH"
                 ERRORS=$((ERRORS + 1))
               fi
             else
-              echo "  ❌ 未找到含 status-red 的 DTS/补丁文件（已搜索 dts/, patches-*/, files-*/）"
+              echo "  ❌ 未找到 NN6000/Link DTS 文件"
               ERRORS=$((ERRORS + 1))
+            fi
+            # 4b. 独立误伤检查：非 Link/NN6000 文件的 status-red 节点是否被修改
+            echo "  --- 误伤检查 ---"
+            OTHER=$(find "$BUILD_DIR/target/linux/qualcommax" \
+              \( -name "*.dts" -o -name "*.dtsi" -o -name "*.patch" \) \
+              ! -name "*link*" ! -name "*nn6000*" ! -name "*NN6000*" \
+              -exec grep -l "status-red" {} \; 2>/dev/null)
+            if [ -n "$OTHER" ]; then
+              echo "$OTHER" | while read -r f; do
+                # 精确检查：仅提取 status-red 节点内 gpios 行，判断是否被改为 ACTIVE_LOW
+                MOD=$(sed -n '/status-red {/,/};/{ /gpios =.*GPIO_ACTIVE_LOW/p; }' "$f" 2>/dev/null)
+                if [ -n "$MOD" ]; then
+                  echo "  ⚠️  $(basename "$f") LED 节点被修改: $(echo "$MOD" | tr -d '\n')"
+                else
+                  echo "  ✅ $(basename "$f") — LED 节点未被修改"
+                fi
+              done
+            else
+              echo "  — 无其他含 status-red 的文件"
             fi
           else
             echo "  — 非 NN6000 模型，跳过"
