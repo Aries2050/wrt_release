@@ -113,6 +113,7 @@ stage_pre_install_source_fixes() {
     update_oaf_deconfig
     add_timecontrol
     add_quickfile
+    add_rtl8812bu_driver
     update_lucky
     fix_rust_compile_error
     update_hdsentinel

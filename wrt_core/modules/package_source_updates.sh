@@ -356,3 +356,23 @@ update_package() {
         echo "更新软件包 $1 到 $PKG_VER $PKG_HASH"
     fi
 }
+
+
+add_rtl8812bu_driver() {
+    # Realtek RTL8812BU/RTL8822BU USB WiFi 驱动。
+    # 使用社区最活跃的维护版 morrownr/88x2bu-20210702 的 OpenWrt 打包，
+    # 提供 kmod-rtl88x2bu-morrownr，覆盖 RTL8812BU 芯片
+    # （Alfa AWUS036ACH、Edimax EW-7822UTC、Comfast CF-924AC 等）。
+    local target_dir="$BUILD_DIR/package/kernel/rtl88x2bu-morrownr"
+    local repo_url="https://github.com/acoul/rtl88x2bu-morrownr-openwrt.git"
+
+    echo "正在添加 rtl88x2bu (RTL8812BU) USB WiFi 驱动..."
+    rm -rf "$target_dir" 2>/dev/null
+
+    if ! git_retry clone --depth 1 "$repo_url" "$target_dir"; then
+        echo "错误：从 $repo_url 克隆 rtl88x2bu 驱动仓库失败" >&2
+        exit 1
+    fi
+
+    echo "rtl88x2bu (RTL8812BU) USB WiFi 驱动已添加：$target_dir"
+}
