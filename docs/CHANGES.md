@@ -1,6 +1,6 @@
 # 本地定制更改概览
 
-> **最后更新**: 2026-08-01
+> **最后更新**: 2026-08-03
 
 本仓库源自 [ZqinKing/wrt_release](https://github.com/ZqinKing/wrt_release)，在此基础上有以下本地定制。
 
@@ -38,6 +38,7 @@
 | 2026-07-31 | 合并 `upstream/main` (`4bf1cc0`) | 合并上游：恢复 quickstart 所有存储依赖；额外完全移除清理块 |
 | 2026-07-31 | LED 服务修复+亮度反转+CI验证 | 见第 14 节修复记录 |
 | 2026-07-31 | `feat/add-usb-wifi-drivers` | 新增 USB WiFi 驱动：RT3070（`kmod-rt2800-usb`） |
+| 2026-08-03 | `feat/add-usb-wifi-drivers` | 新增 USB WiFi 驱动：RTL8812BU（主线 `rtw88`，`kmod-rtw88-8812au`，与 lwfinger 维护的无线主线同源） |
 | 2026-07-31 | 定制分支信息显示 | 在 LuCI 概览页固件版本与内核版本之间插入「定制分支」行，显示编译所基于的仓库/分支/提交哈希 |
 | 2026-08-01 | 定制分支显示增强 | 双仓库格式 + zh_Hans 翻译路径修复 + 未指定提交时自动获取上游 HEAD 哈希 |
 | 2026-08-01 | LED 服务全面修复 | SIGHUP 递归、read -d '' 静默失效、文件名过滤防误伤、glob 适配 7.x 内核，详见第 14 节 |
@@ -99,6 +100,7 @@
 | `tailscale` + `luci-app-tailscale` | `d100602` | Tailscale 虚拟组网（从 custom_feed 拉取） |
 | `jq` | `707f49e` | JSON 命令行处理工具 |
 | `kmod-rt2800-usb` / `rt2800-usb-firmware` | `feat/add-usb-wifi-drivers` | RT3070/Ralink RT2870 USB 无线网卡驱动和固件 |
+| `kmod-rtw88-8812au` / `rtl8812a-firmware` | `feat/add-usb-wifi-drivers` | RTL8812BU/RTL8812AU USB 无线网卡主线驱动（`rtw88`，无线主线 backport，同 lwfinger 维护） |
 
 ### 6. 定制分支信息行
 
