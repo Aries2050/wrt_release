@@ -66,7 +66,10 @@
 |------|------|------|------|
 | 预编译 IPK 安装脚本 | `3f29ec7` | `wrt_core/prebuilt_packages/install.sh` | 集中管理预编译 IPK 包的安装流程（qBittorrent 5.1.4 / Qt6） |
 | qBittorrent 包定义 | `cb00024` | `wrt_core/prebuilt_packages/qbittorrent.conf` | qBittorrent 默认 Web UI 配置 |
+| luci-app-qbittorrent 改源码编译 | `-` | `wrt_core/packages/luci-app-qbittorrent/` + `wrt_core/modules/local_packages.sh` | 前端由预编译 IPK 改为本地源码编译（`install_local_packages()` 接入 `package/`）；预编译包仅保留 qbittorrent 后端 |
 | Lucky 预编译二进制 | `29273ea` | `wrt_core/prebuilt_packages/lucky_2.27.2_Linux_*.tar.gz` | Lucky 预编译二进制包，构建时注入到 lucky Makefile |
+
+> **来源**：qBittorrent 本体及 `luci-app-qbittorrent` 前端均来源于恩山无线论坛 [bishuiwuhen](https://www.right.com.cn/forum/space-uid-249539.html) 的帖子 <https://www.right.com.cn/forum/thread-1456090-1-1.html>。
 
 ### 4. NN6000 LED GPIO 极性修正
 

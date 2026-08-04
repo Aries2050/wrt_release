@@ -31,6 +31,8 @@ wrt_release/
 │   │   ├── general.sh                ← 兼容入口 → 重定向到 repo.sh
 │   │   ├── packages.sh               ← 兼容入口 → 重定向到各子模块
 │   │   ├── glibc_compat.sh           ← ⭐ glibc 运行时兼容层
+│   │   ├── local_packages.sh          ← ⭐ 本地源码包接入编译树（复制到 package/ 参与编译）
+│   ├── packages/                     ← ⭐ 本地源码包（luci-app-qbittorrent 前端等）
 │   ├── patches/                      ← 补丁和脚本
 │   │   ├── 990_set_argon_primary     ← 设置 Argon 默认主题
 │   │   ├── 991_custom_settings       ← 自定义系统设置
@@ -71,6 +73,15 @@ wrt_release/
 │           ├── led.init              ← OpenWrt 标准 LED 框架
 │           └── any_rclocal.init      ← 后台启动框架
 ```
+
+## qBittorrent 集成说明
+
+qBittorrent 本体及 `luci-app-qbittorrent` 前端均来源于恩山无线论坛[bishuiwuhen](https://www.right.com.cn/forum/space-uid-249539.html)：
+
+> https://www.right.com.cn/forum/thread-1456090-1-1.html
+
+- **qBittorrent 本体**（`wrt_core/prebuilt_packages/pkgs/qbittorrent_5.1.4-r1_aarch64_cortex-a53.ipk`）：无法源码编译，编译期由 `install_prebuilt_ipks()` 解压注入固件 `BUILD_DIR/files/`，提供 `/usr/bin/qbittorrent-nox`、`/etc/init.d/qbittorrent`、`/etc/config/qbittorrent`。
+- **luci-app-qbittorrent 前端**（`wrt_core/packages/luci-app-qbittorrent/`）：为本地源码编译（由 `install_local_packages()` 接入 `package/`）。仅提供 LuCI 配置界面，不含 qBittorrent 本体与 WebUI；编译期依赖 luci-base，运行期依赖 qbittorrent 后端。
 
 ## 构建阶段流程
 
