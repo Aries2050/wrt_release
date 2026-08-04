@@ -1,7 +1,7 @@
 # luci-app-adguardhome 源切换记录（kenzok8/small-package）
 
 > 日期：2026-08-04
-> 状态：**已提交**（当前提交）
+> 状态：**已提交**（`b7adf44`，2026-08-04）
 
 ## 1. 目标
 
@@ -25,7 +25,7 @@
 | `92760ff` | 2026-04-01 | 从 immortalwrt packages feed 移除该包（避免来源冲突） |
 | `541c809` | 2026-08-01 | 切回官方源：`custom_feed.sh` 移除 + 停用 ZqinKing fork |
 | `b11c563` | 2026-08-01 | `verify.sh` 移除 `luci-app-adguardhome` 检查 |
-| **本次（当前提交）** | 2026-08-04 | 切换到 kenzok8/small-package 源 + 二进制编入 |
+| `b7adf44` | 2026-08-04 | 切换到 kenzok8/small-package 源 + 二进制编入 |
 
 ## 4. 改动明细（20 个文件）
 

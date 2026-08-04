@@ -148,10 +148,11 @@ ImmortalWRT 上游 DTS 中 GPIO flags 为 `GPIO_ACTIVE_HIGH`(0x00)，但硬件�
 | 🟢 绿常亮 | `connected` | 已连接，无数据活动 |
 | 🟢 绿闪烁 | `active` | 有数据活动，间隔随速率自适应 |
 
-绿灯闪烁间隔随上下行合计速率自动调整（10KB/s~50MB/s 六档），速率越高闪烁越快。详见 [`docs/CHANGES.md`](docs/CHANGES.md) 第 13 节。
+绿灯闪烁间隔随上下行合计速率自动调整（10KB/s~50MB/s 六档），速率越高闪烁越快。详见 [`docs/CHANGES.md`](docs/CHANGES.md) 第 14 节。
 
 ## 8. 项目结构说明
 
+- `AGENTS.md` / `.github/copilot-instructions.md`：AI 协作规范文件（Copilot 等工具自动加载），含「CHANGES.md 修订时间线规范」。
 - `build.sh`：主编译入口，负责设备选择、模式选择、配置组合、容器构建和固件收集。qBittorrent 后端等无法源码编译的预编译 IPK 在编译阶段通过 `install_prebuilt_ipks()` 注入固件。
 - `wrt_core/packages/`：本地源码包目录，构建时由 `install_local_packages()` 复制到编译树 `package/` 参与编译（如 `luci-app-qbittorrent` 前端）。
 - `firmware/`：完整构建后的固件输出目录，由脚本自动创建和刷新。
