@@ -102,7 +102,7 @@
 | `jq` | `707f49e` | JSON 命令行处理工具 |
 | `kmod-rt2800-usb` / `rt2800-usb-firmware` | `feat/add-usb-wifi-drivers` | RT3070/Ralink RT2870 USB 无线网卡驱动和固件 |
 | `kmod-rtw88-8812au` / `rtl8812a-firmware` | `feat/add-usb-wifi-drivers` | RTL8812BU/RTL8812AU USB 无线网卡主线驱动（`rtw88`，无线主线 backport，同 lwfinger 维护） |
-| `adguardhome` + `luci-app-adguardhome` | 未提交 | AdGuardHome 切换 kenzok8/small-package 源，16 机型二进制核心编入固件；详见 [adguardhome-source-switch.md](./adguardhome-source-switch.md) |
+| `adguardhome` + `luci-app-adguardhome` | `d740488` | AdGuardHome 切换 kenzok8/small-package 源，16 机型二进制核心编入固件；详见 [adguardhome-source-switch.md](./adguardhome-source-switch.md) |
 
 ### 6. 定制分支信息行
 
