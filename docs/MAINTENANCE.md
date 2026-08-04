@@ -7,6 +7,9 @@
 ```
 wrt_release/
 ├── build.sh                          ← 入口脚本：选择设备、调用构建流程
+├── AGENTS.md                         ← ⭐ AI 协作规范（AGENTS 协议）
+├── .github/
+│   └── copilot-instructions.md       ← ⭐ Copilot 指令（AI 规范入口）
 ├── wrt_core/
 │   ├── update.sh                     ← 核心构建流程：拉取源码 → 应用补丁 → 编译
 │   ├── pre_clone_action.sh           ← GitHub Actions 预克隆操作
@@ -31,6 +34,8 @@ wrt_release/
 │   │   ├── general.sh                ← 兼容入口 → 重定向到 repo.sh
 │   │   ├── packages.sh               ← 兼容入口 → 重定向到各子模块
 │   │   ├── glibc_compat.sh           ← ⭐ glibc 运行时兼容层
+│   │   ├── local_packages.sh          ← ⭐ 本地源码包接入编译树（复制到 package/ 参与编译）
+│   ├── packages/                     ← ⭐ 本地源码包（luci-app-qbittorrent 前端等）
 │   ├── patches/                      ← 补丁和脚本
 │   │   ├── 990_set_argon_primary     ← 设置 Argon 默认主题
 │   │   ├── 991_custom_settings       ← 自定义系统设置
@@ -71,6 +76,15 @@ wrt_release/
 │           ├── led.init              ← OpenWrt 标准 LED 框架
 │           └── any_rclocal.init      ← 后台启动框架
 ```
+
+## qBittorrent 集成说明
+
+qBittorrent 本体及 `luci-app-qbittorrent` 前端均来源于恩山无线论坛[bishuiwuhen](https://www.right.com.cn/forum/space-uid-249539.html)：
+
+> https://www.right.com.cn/forum/thread-1456090-1-1.html
+
+- **qBittorrent 本体**（`wrt_core/prebuilt_packages/pkgs/qbittorrent_5.1.4-r1_aarch64_cortex-a53.ipk`）：无法源码编译，编译期由 `install_prebuilt_ipks()` 解压注入固件 `BUILD_DIR/files/`，提供 `/usr/bin/qbittorrent-nox`、`/etc/init.d/qbittorrent`、`/etc/config/qbittorrent`。
+- **luci-app-qbittorrent 前端**（`wrt_core/packages/luci-app-qbittorrent/`）：为本地源码编译（由 `install_local_packages()` 接入 `package/`）。仅提供 LuCI 配置界面，不含 qBittorrent 本体与 WebUI；编译期依赖 luci-base，运行期依赖 qbittorrent 后端。
 
 ## 构建阶段流程
 
@@ -268,6 +282,18 @@ git push origin main
 - 引用外部资源需附完整 URL
 - 中英文混排时，中英文之间加空格
 
+#### CHANGES.md 修订时间线规范
+
+- **提交列原则上填写实际提交哈希**（`` `7位哈希` ``）
+- **允许 `当前提交` 占位**：因为不可能在提交前预知哈希，未提交的改动可在提交列写 `当前提交`；但**下一次修改仓库时，必须把上一次遗留的 `当前提交` 占位回填为实际哈希**（可用 `git log -1 --format="%h"` 查询）
+- 禁止用描述性文字（如 `LED 服务修复`）作为提交列——提交列必须是哈希或 `当前提交`
+- 同一提交涵盖多个主题时，可在修订时间线拆分为多行，但每行提交列填写同一实际哈希
+- 每次代码提交后，在修订时间线**追加**一行 `| 日期 | \`哈希\` | 变更说明 |`，并同步更新文件顶部 `最后更新` 日期
+- 定制清单（`## 定制清单`）各表格中引用提交时同样使用实际哈希；遗留的 `当前`/`当前提交`/`同上` 占位在下次修改时回填为哈希
+- 提交列的哈希必须真实存在（可用 `git rev-parse --verify <hash>^{commit}` 校验），防止手写错误
+- 引用**外部仓库**（非本仓库）的提交时，本地无法验证属正常，需同时给出完整 URL（如 `https://github.com/xxx/commit/<hash>`）
+- 修订时间线中 `合并 upstream/main` 等特殊条目可保留“描述 + 哈希”的格式
+
 #### 文档质量检查
 
 - [ ] 文档日期已更新
@@ -275,6 +301,7 @@ git push origin main
 - [ ] 示例命令可执行、已验证
 - [ ] 文件间的交叉引用链接正确
 - [ ] 无陈旧/冲突信息
+- [ ] CHANGES.md 修订时间线提交列：无描述性文字；`当前提交` 占位仅允许用于最新未提交改动，且下次修改时已回填为实际哈希
 
 ### AI 工作流程
 

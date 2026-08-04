@@ -37,6 +37,9 @@ env:
 
 jobs:
   build:
+    outputs:
+      build_date: ${{ env.BUILD_DATE }}
+      firmware_files: ${{ steps.list-firmware.outputs.files }}
     strategy:
       matrix:
         os: [ubuntu-24.04]
@@ -433,8 +436,55 @@ jobs:
           echo "Firmware file count: $(ls -1 ./firmware 2>/dev/null | wc -l)"
           echo "===================================================="
 
-      - name: Upload Firmware
+      - name: List Firmware Files
+        id: list-firmware
+        run: |
+          cd ./firmware
+          files=$(ls -1 2>/dev/null | jq -R -s -c 'split("\n") | map(select(. != ""))')
+          echo "files=$files" >> "$GITHUB_OUTPUT"
+          echo "检测到固件文件: $files"
+
+      # 中转：合并上传固件，供 upload-per-file job 下载后逐文件独立打包
+      - name: Upload Firmware (transit)
         uses: actions/upload-artifact@v7.0.1
         with:
           name: ${{ env.BUILD_DATE }}_${{ inputs.model }}
           path: ./firmware/*.*
+
+  # 每个固件文件独立打包为单独 artifact
+  upload-per-file:
+    needs: build
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        file: ${{ fromJson(needs.build.outputs.firmware_files) }}
+    steps:
+      - name: Download Firmware
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.build.outputs.build_date }}_${{ inputs.model }}
+          path: firmware
+      - name: Upload Single Firmware
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: ${{ matrix.file }}
+          path: ./firmware/${{ matrix.file }}
+          if-no-files-found: error
+
+  # 清理中转合并包（只保留各固件独立 artifact）
+  cleanup:
+    needs: [build, upload-per-file]
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Delete Transit Artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          transit="${{ needs.build.outputs.build_date }}_${{ inputs.model }}"
+          ids=$(gh api "repos/{owner}/{repo}/actions/artifacts" --jq ".artifacts[] | select(.name==\"$transit\") | .id" 2>/dev/null || true)
+          if [ -n "$ids" ]; then
+            for id in $ids; do
+              echo "删除中转 artifact: $id"
+              gh api -X DELETE "repos/{owner}/{repo}/actions/artifacts/$id" || true
+            done
+          fi

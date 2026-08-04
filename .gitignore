@@ -34,4 +34,3 @@ wrt_core/deconfig/test.config
 .env
 .taskmaster/
 .sisyphus/
-AGENTS.md

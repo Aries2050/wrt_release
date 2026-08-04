@@ -8,7 +8,9 @@ remove_unwanted_packages() {
         "luci-app-vssr" "luci-app-daed" "luci-app-dae" "luci-app-alist" "luci-app-homeproxy"
         "luci-app-haproxy-tcp" "luci-app-openclash" "luci-app-mihomo" "luci-app-appfilter"
         "luci-app-msd_lite" "luci-app-unblockneteasemusic" \
-        "luci-app-adguardhome" "luci-app-tailscale"
+        "luci-app-adguardhome" "luci-app-tailscale" \
+        # 由 wrt_core/packages/ 本地源码接管（install_local_packages）
+        "luci-app-qbittorrent"
     )
     local packages_net=(
         "haproxy" "xray-core" "xray-plugin" "dns2socks" "alist" "hysteria"

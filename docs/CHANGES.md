@@ -36,17 +36,20 @@
 | 2026-07-19 | `ea4dd1c`–`99ae05c` | 固件特征指纹 + 文档修正 |
 | 2026-07-19 | `0f5325b` | RGB LED 互联网状态指示灯（5 状态服务方案） |
 | 2026-07-31 | 合并 `upstream/main` (`4bf1cc0`) | 合并上游：恢复 quickstart 所有存储依赖；额外完全移除清理块 |
-| 2026-07-31 | LED 服务修复+亮度反转+CI验证 | 见第 14 节修复记录 |
+| 2026-07-31 | `41c6c0e` | 见第 14 节修复记录 |
 | 2026-07-31 | `feat/add-usb-wifi-drivers` | 新增 USB WiFi 驱动：RT3070（`kmod-rt2800-usb`） |
-| 2026-07-31 | 定制分支信息显示 | 在 LuCI 概览页固件版本与内核版本之间插入「定制分支」行，显示编译所基于的仓库/分支/提交哈希 |
-| 2026-08-01 | 定制分支显示增强 | 双仓库格式 + zh_Hans 翻译路径修复 + 未指定提交时自动获取上游 HEAD 哈希 |
-| 2026-08-01 | LED 服务全面修复 | SIGHUP 递归、read -d '' 静默失效、文件名过滤防误伤、glob 适配 7.x 内核，详见第 14 节 |
-| 2026-08-01 | HDSentinel 下载验证 | 大小+zip 格式双重校验，防 HTML 错误页冒充有效下载，详见第 10 节 |
-| 2026-08-01 | luci-app-adguardhome 切回官方源 | 注释 ZqinKing fork 替换逻辑，改用 openwrt/luci 官方版本 |
-| 2026-08-01 | sysupgrade.conf 覆写修复 | `add_backup_info_to_sysupgrade` 中 `>` 改为 `>>`，防止清除默认备份路径 |
-| 2026-08-01 | 自定义启动脚本增强 + 管理工具 | `find /` 搜索 + `.boot-enabled` 触发文件；新增 `scripts/setup_custom_boot.sh` 交互式/命令行创建任务 |
+| 2026-07-31 | `d63a05b` | 在 LuCI 概览页固件版本与内核版本之间插入「定制分支」行，显示编译所基于的仓库/分支/提交哈希 |
+| 2026-08-01 | `389e5fe` | 双仓库格式 + zh_Hans 翻译路径修复 + 未指定提交时自动获取上游 HEAD 哈希 |
+| 2026-08-01 | `541c809` | SIGHUP 递归、read -d '' 静默失效、文件名过滤防误伤、glob 适配 7.x 内核，详见第 14 节 |
+| 2026-08-01 | `541c809` | 大小+zip 格式双重校验，防 HTML 错误页冒充有效下载，详见第 10 节 |
+| 2026-08-01 | `541c809` | 注释 ZqinKing fork 替换逻辑，改用 openwrt/luci 官方版本 |
+| 2026-08-01 | `541c809` | `add_backup_info_to_sysupgrade` 中 `>` 改为 `>>`，防止清除默认备份路径 |
+| 2026-08-01 | `541c809` | `find /` 搜索 + `.boot-enabled` 触发文件；新增 `scripts/setup_custom_boot.sh` 交互式/命令行创建任务 |
 | 2026-08-03 | `feat/add-usb-wifi-drivers` | 新增 USB WiFi 驱动：RTL8812BU（主线 `rtw88`，`kmod-rtw88-8812au`，与 lwfinger 维护的无线主线同源） |
-| 2026-08-04 | `luci-app-adguardhome` 切回 kenzok8/small-package 源 | custom_feed 同步该包；16 机型 `CONFIG_PACKAGE_adguardhome=y` 二进制编入；清理悬空 `luci-i18n-adguardhome-zh-cn`；详见 [adguardhome-source-switch.md](./adguardhome-source-switch.md) |
+| 2026-08-04 | `b7adf44` | custom_feed 同步该包；16 机型 `CONFIG_PACKAGE_adguardhome=y` 二进制编入；清理悬空 `luci-i18n-adguardhome-zh-cn`；详见 [adguardhome-source-switch.md](./adguardhome-source-switch.md) |
+| 2026-08-04 | `da108e8` | luci-app-qbittorrent 前端改为本地源码编译（`wrt_core/packages/` + `install_local_packages()`），删除 luci 预编译 IPK 及索引条目；预编译包仅保留 qbittorrent 后端；详见 [MAINTENANCE.md](./MAINTENANCE.md) |
+| 2026-08-04 | `fb657e2` | 文档与规范更新：CHANGES.md 提交列统一为实际哈希、MAINTENANCE.md 新增「CHANGES.md 修订时间线规范」、新增 AI 规范文件（AGENTS.md / `.github/copilot-instructions.md`）、`.gitignore` 取消忽略 AGENTS.md |
+| 2026-08-04 | `当前提交` | GitHub Actions 固件输出优化：`build_wrt.yml` 改为每个固件文件独立打包为单独 artifact（matrix 逐文件上传，不再合并为一个 zip） |
 
 ## 定制清单
 
@@ -68,7 +71,10 @@
 |------|------|------|------|
 | 预编译 IPK 安装脚本 | `3f29ec7` | `wrt_core/prebuilt_packages/install.sh` | 集中管理预编译 IPK 包的安装流程（qBittorrent 5.1.4 / Qt6） |
 | qBittorrent 包定义 | `cb00024` | `wrt_core/prebuilt_packages/qbittorrent.conf` | qBittorrent 默认 Web UI 配置 |
+| luci-app-qbittorrent 改源码编译 | `da108e8` | `wrt_core/packages/luci-app-qbittorrent/` + `wrt_core/modules/local_packages.sh` | 前端由预编译 IPK 改为本地源码编译（`install_local_packages()` 接入 `package/`）；预编译包仅保留 qbittorrent 后端 |
 | Lucky 预编译二进制 | `29273ea` | `wrt_core/prebuilt_packages/lucky_2.27.2_Linux_*.tar.gz` | Lucky 预编译二进制包，构建时注入到 lucky Makefile |
+
+> **来源**：qBittorrent 本体及 `luci-app-qbittorrent` 前端均来源于恩山无线论坛 [bishuiwuhen](https://www.right.com.cn/forum/space-uid-249539.html) 的帖子 <https://www.right.com.cn/forum/thread-1456090-1-1.html>。
 
 ### 4. NN6000 LED GPIO 极性修正
 
@@ -102,16 +108,16 @@
 | `jq` | `707f49e` | JSON 命令行处理工具 |
 | `kmod-rt2800-usb` / `rt2800-usb-firmware` | `feat/add-usb-wifi-drivers` | RT3070/Ralink RT2870 USB 无线网卡驱动和固件 |
 | `kmod-rtw88-8812au` / `rtl8812a-firmware` | `feat/add-usb-wifi-drivers` | RTL8812BU/RTL8812AU USB 无线网卡主线驱动（`rtw88`，无线主线 backport，同 lwfinger 维护） |
-| `adguardhome` + `luci-app-adguardhome` | 当前提交 | AdGuardHome 切换 kenzok8/small-package 源，16 机型二进制核心编入固件；详见 [adguardhome-source-switch.md](./adguardhome-source-switch.md) |
+| `adguardhome` + `luci-app-adguardhome` | `b7adf44` | AdGuardHome 切换 kenzok8/small-package 源，16 机型二进制核心编入固件；详见 [adguardhome-source-switch.md](./adguardhome-source-switch.md) |
 
 ### 6. 定制分支信息行
 
 | 更改 | 提交 | 文件 | 说明 |
 |------|------|------|------|
-| LuCI 概览页插入「定制分支」行 | 当前 | `wrt_core/modules/luci_fixes.sh` → `set_build_signature()` | 在状态页「固件版本」与「内核版本」之间新增一行，显示编译来源 |
-| 双仓库显示格式 | 当前 | `wrt_core/modules/luci_fixes.sh` | 显示 `Aries2050/wrt_release@main(哈希) 基于 VIKINGYFY/immortalwrt@main(哈希) 编译`：定制仓库（wrt_release）分支/哈希取自 `git remote/rev-parse`，上游仓库取自 `REPO_URL`/`REPO_BRANCH` |
-| 自动获取上游哈希 | 当前 | `wrt_core/modules/luci_fixes.sh` | 未指定 `COMMIT_HASH`（`none`/空）时，从 `stage_repo_checkout` 已检出的 `$BUILD_DIR` 读取上游 HEAD 哈希 |
-| 中文翻译注入 | 当前 | `wrt_core/modules/luci_fixes.sh` + CI | i18n key `_('Custom Branch')`，中文翻译写入 **`po/zh_Hans/`**（ImmortalWRT 简体中文目录，兼容 `zh-cn`/`zh_CN`） |
+| LuCI 概览页插入「定制分支」行 | `d63a05b` | `wrt_core/modules/luci_fixes.sh` → `set_build_signature()` | 在状态页「固件版本」与「内核版本」之间新增一行，显示编译来源 |
+| 双仓库显示格式 | `389e5fe` | `wrt_core/modules/luci_fixes.sh` | 显示 `Aries2050/wrt_release@main(哈希) 基于 VIKINGYFY/immortalwrt@main(哈希) 编译`：定制仓库（wrt_release）分支/哈希取自 `git remote/rev-parse`，上游仓库取自 `REPO_URL`/`REPO_BRANCH` |
+| 自动获取上游哈希 | `389e5fe` | `wrt_core/modules/luci_fixes.sh` | 未指定 `COMMIT_HASH`（`none`/空）时，从 `stage_repo_checkout` 已检出的 `$BUILD_DIR` 读取上游 HEAD 哈希 |
+| 中文翻译注入 | `389e5fe` | `wrt_core/modules/luci_fixes.sh` + CI | i18n key `_('Custom Branch')`，中文翻译写入 **`po/zh_Hans/`**（ImmortalWRT 简体中文目录，兼容 `zh-cn`/`zh_CN`） |
 
 ### 7. glibc 兼容层
 
@@ -148,7 +154,7 @@
 | 自动下载 HDSentinel 并注入固件 | `deb75fa`, `76408a3` | `wrt_core/modules/target_fixes.sh` | 从 `hdsentinel.com` 按架构下载，解压后通过 `BUILD_DIR/files/bin/` 注入根文件系统 |
 | 本地回退包 | `deb75fa` | `wrt_core/prebuilt_packages/hdsentinel/*.zip` | 下载失败时使用仓库内本地副本 |
 | 设为全局命令和环境变量 | `76408a3` | `wrt_core/modules/target_fixes.sh` | 创建 `/usr/bin/hdsentinel` 包装脚本（自动调用 `glibc-run`）及 `/etc/profile.d/hdsentinel.sh` |
-| 下载文件有效性验证 | 2026-08-01 | `wrt_core/modules/target_fixes.sh` | 大小 < 512KB 或非有效 zip → 自动回退本地副本；三阶段 `use_local` 标志统一回退入口 |
+| 下载文件有效性验证 | `541c809` | `wrt_core/modules/target_fixes.sh` | 大小 < 512KB 或非有效 zip → 自动回退本地副本；三阶段 `use_local` 标志统一回退入口 |
 
 ### 11. 自动集成预编译包（已移除）
 
@@ -160,9 +166,9 @@
 |------|------|------|------|
 | 新增自定义启动脚本功能 | `b72c741` | `wrt_core/patches/993_run-custom-boot-scripts` | 刷机/升级后首次启动时执行一次（UCI defaults 机制），日常重启不重复执行。`find /` 搜索 `custom-boot.d`，需 `.boot-enabled` 触发文件 |
 | 加入 sysupgrade 备份清单 | `b72c741` | `wrt_core/modules/target_fixes.sh` | `/etc/custom-boot.d/` 已加入 `sysupgrade.conf` |
-| 2026-08-01 增强 | 当前 | `wrt_core/patches/993_run-custom-boot-scripts` | 从硬编码 `/etc/` 改为 `find / -maxdepth 4` 搜索（支持 USB 等外部存储）；新增 `.boot-enabled` 触发文件机制 |
+| 2026-08-01 增强 | `541c809` | `wrt_core/patches/993_run-custom-boot-scripts` | 从硬编码 `/etc/` 改为 `find / -maxdepth 4` 搜索（支持 USB 等外部存储）；新增 `.boot-enabled` 触发文件机制 |
 | 加入 sysupgrade 备份清单 | `b72c741` | `wrt_core/modules/target_fixes.sh` | `/etc/custom-boot.d/` 已加入 `sysupgrade.conf`，与其他保留路径（AdGuardHome、easytier、lucky）一致 |
-| 2026-08-01 修复 `>` → `>>` | 当前 | `wrt_core/modules/target_fixes.sh` | `add_backup_info_to_sysupgrade()` 原先用 `>` 覆写整个 `sysupgrade.conf`，改为 `>>` 追加，保留默认内容 |
+| 2026-08-01 修复 `>` → `>>` | `541c809` | `wrt_core/modules/target_fixes.sh` | `add_backup_info_to_sysupgrade()` 原先用 `>` 覆写整个 `sysupgrade.conf`，改为 `>>` 追加，保留默认内容 |
 
 > **持久化说明**：`/etc/custom-boot.d/` 位于 overlay 分区。sysupgrade 两种模式（保留/不保留设置）均通过 `sysupgrade.conf` 保留该目录。唯一丢失场景是恢复出厂设置（`firstboot`）——这是预期行为。升级后 UCI defaults 会重新执行所有 `apply.sh`，因此脚本**必须幂等**。
 
@@ -190,7 +196,7 @@
 | qBittorrent 预置固件（内置预编译 IPK） | `3f29ec7` | `wrt_core/modules/target_fixes.sh` + `wrt_core/update.sh` | 新增 `install_prebuilt_ipks()`，解压 IPK 到 `BUILD_DIR/files/` |
 | CI 安装 7zip/binutils 修复解压 | `d2a8084` | `.github/workflows/build_wrt.yml` / `release_wrt.yml` | CI 安装 `binutils`(ar) 和 `7zip`(7zz) |
 | install_prebuilt_ipks 解压兜底 | `cb00024` | `wrt_core/modules/target_fixes.sh` | 支持 gzip+tarball 格式 IPK；后移除已无用的 `ar` 兜底 |
-| sysupgrade.conf 覆写修复 | 2026-08-01 | `wrt_core/modules/target_fixes.sh` → `add_backup_info_to_sysupgrade()` | `cat >` 改为 `cat >>`，防止清除 sysupgrade.conf 默认备份路径 |
+| sysupgrade.conf 覆写修复 | `541c809` | `wrt_core/modules/target_fixes.sh` → `add_backup_info_to_sysupgrade()` | `cat >` 改为 `cat >>`，防止清除 sysupgrade.conf 默认备份路径 |
 
 ### 14. RGB LED 互联网状态指示灯（5 状态服务方案）
 
@@ -256,9 +262,9 @@
 | 更改 | 文件 | 说明 |
 |------|------|------|
 | 新增 Verify Customizations | `.github/workflows/build_wrt.yml` / `release_wrt.yml` | Build Firmware 后检查定制是否生效 |
-| 2026-08-01 DTS 独立验证 + 误伤检查 | 同上 | 4a. 文件名过滤查找 Link/NN6000 DTS 并验证 GPIO_ACTIVE_LOW；4b. 精确 sed 检查非 NN6000 文件的 LED 节点是否被误改 |
-| 2026-08-01 HDSentinel 检查 | 同上 | 新增 HDSentinel 可执行文件存在性检查（soft check） |
-| 2026-08-01 构建标记系统 | 同上 + `wrt_core/modules/*.sh` | 新增 24 个构建标记（`$BUILD_DIR/.build_marks/`），各定制步骤主动上报成功/失败，CI 优先读取标记而非 grep/find 猜测 |
+| 2026-08-01 DTS 独立验证 + 误伤检查 | `3cf7907` | 4a. 文件名过滤查找 Link/NN6000 DTS 并验证 GPIO_ACTIVE_LOW；4b. 精确 sed 检查非 NN6000 文件的 LED 节点是否被误改 |
+| 2026-08-01 HDSentinel 检查 | `541c809` | 新增 HDSentinel 可执行文件存在性检查（soft check） |
+| 2026-08-01 构建标记系统 | `541c809` + `wrt_core/modules/*.sh` | 新增 24 个构建标记（`$BUILD_DIR/.build_marks/`），各定制步骤主动上报成功/失败，CI 优先读取标记而非 grep/find 猜测 |
 
 **验证项：**
 1. LED 控制文件（`led-ctl`、`led-ctrl.init`、`994_led_config`）
@@ -285,6 +291,8 @@
 本地独有文件和目录（上游不存在）：
 
 ```
+AGENTS.md
+.github/copilot-instructions.md
 wrt_core/patches/glibc-compat-check.sh
 wrt_core/patches/led-ctl
 wrt_core/patches/led-ctrl.init
