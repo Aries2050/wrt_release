@@ -148,11 +148,13 @@ ImmortalWRT 上游 DTS 中 GPIO flags 为 `GPIO_ACTIVE_HIGH`(0x00)，但硬件�
 | 🟢 绿常亮 | `connected` | 已连接，无数据活动 |
 | 🟢 绿闪烁 | `active` | 有数据活动，间隔随速率自适应 |
 
-绿灯闪烁间隔随上下行合计速率自动调整（10KB/s~50MB/s 六档），速率越高闪烁越快。详见 [`docs/CHANGES.md`](docs/CHANGES.md) 第 13 节。
+绿灯闪烁间隔随上下行合计速率自动调整（10KB/s~50MB/s 六档），速率越高闪烁越快。详见 [`docs/CHANGES.md`](docs/CHANGES.md) 第 14 节。
 
 ## 8. 项目结构说明
 
-- `build.sh`：主编译入口，负责设备选择、模式选择、配置组合、容器构建和固件收集。预编译 IPK（如 qBittorrent）在编译阶段通过 `install_prebuilt_ipks()` 注入固件。
+- `AGENTS.md` / `.github/copilot-instructions.md`：AI 协作规范文件（Copilot 等工具自动加载），含「CHANGES.md 修订时间线规范」。
+- `build.sh`：主编译入口，负责设备选择、模式选择、配置组合、容器构建和固件收集。qBittorrent 后端等无法源码编译的预编译 IPK 在编译阶段通过 `install_prebuilt_ipks()` 注入固件。
+- `wrt_core/packages/`：本地源码包目录，构建时由 `install_local_packages()` 复制到编译树 `package/` 参与编译（如 `luci-app-qbittorrent` 前端）。
 - `firmware/`：完整构建后的固件输出目录，由脚本自动创建和刷新。
 - `wrt_core/build_container.sh`：容器内构建入口。
 - `wrt_core/update.sh`：源码更新、feeds 调整、软件包同步和补丁应用主流程。包含 LAN 地址自定义（`192.168.199.1`）和构建标识注入。
@@ -162,7 +164,7 @@ ImmortalWRT 上游 DTS 中 GPIO flags 为 `GPIO_ACTIVE_HIGH`(0x00)，但硬件�
 - `wrt_core/deconfig/fragments/`：可组合配置片段。
 - `wrt_core/modules/`：模块化脚本，包括仓库准备、网络重试、feeds/custom_feed、源码修正、LuCI 修正（含构建标识 `compilation framework by ZqinKing, build by Aries`）、服务修正、验证、Docker、CUPS 等静态职责模块。
 - `wrt_core/patches/`：补丁、默认设置、Wi-Fi 初始化、NSS 诊断、PBR 规则和其他构建时注入文件。含本地定制：`led-ctl`（LED CLI 工具）、`led-ctrl.init`（5 状态联网状态指示灯服务）、`994_led_config`（LED UCI 配置）、`993_run-custom-boot-scripts`（刷机后自定义启动脚本框架）、`glibc-compat-check.sh`（glibc 兼容性诊断）。
-- `wrt_core/prebuilt_packages/`：预编译包目录。含 qBittorrent 5.1.4 IPK、HDSentinel 本地回退包（`hdsentinel/`）、Lucky 预编译二进制。编译阶段通过 `install_prebuilt_ipks()` 注入到 `BUILD_DIR/files/`。
+- `wrt_core/prebuilt_packages/`：预编译包目录。含 qBittorrent 5.1.4 后端 IPK（qBittorrent 本体与 `luci-app-qbittorrent` 前端均来源于恩山无线论坛 [bishuiwuhen](https://www.right.com.cn/forum/space-uid-249539.html) 的帖子 [thread-1456090](https://www.right.com.cn/forum/thread-1456090-1-1.html)，前端现改为 `wrt_core/packages/` 本地源码编译）、HDSentinel 本地回退包（`hdsentinel/`）、Lucky 预编译二进制。编译阶段通过 `install_prebuilt_ipks()` 注入到 `BUILD_DIR/files/`。
 - `docs/`：本地定制文档。包含定制变更记录（CHANGES.md）、仓库结构维护指南（MAINTENANCE.md）、glibc 兼容层说明（GLIBC_COMPAT.md）、NN6000 LED 配置分析与 ImmortalWRT 差异修复（nn6000-led-config.md）、原厂固件特征指纹（nn6000-stock-fingerprint.md）、以及从 Link NN6000 原厂固件提取的参考脚本（stock-firmware/led/）。
 - `scripts/`：设备端运行时辅助脚本。包括 `install_glibc_compat.sh`（glibc 兼容层安装）、`check_stock_leds.sh`（原厂固件 LED 全面检测脚本）。
 

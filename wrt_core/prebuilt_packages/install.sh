@@ -35,19 +35,20 @@ install_qbittorrent() {
 EOF1
     fi
 
-    cp "$script_dir/key/527ca1333af7875e" /etc/opkg/keys
+    # luci-app-qbittorrent 前端已改为源码编译（wrt_core/packages/），
+    # 这里仅安装 qbittorrent 后端预编译包。
+    # opkg 源已不再附带有效签名（索引变更后无法用私钥重签），
+    # 故安装时使用 --no-check-signature 跳过校验。
     local escaped_dir=$(echo "$script_dir/pkgs" | sed 's/\//\\\//g')
     sed -i "\$asrc\/gz openwrt_qbt file:\/\/${escaped_dir}" /etc/opkg/customfeeds.conf 2>/dev/null
 
     mkdir -p /var/opkg-lists/
     cp "$script_dir/pkgs/Packages.gz" /var/opkg-lists/openwrt_qbt 2>/dev/null
-    cp "$script_dir/pkgs/Packages.sig" /var/opkg-lists/openwrt_qbt.sig 2>/dev/null
 
-    [ "$#" -gt 0 ] || set -- qbittorrent luci-app-qbittorrent luci-i18n-qbittorrent-zh-cn
-    opkg install "$@"
+    [ "$#" -gt 0 ] || set -- qbittorrent
+    opkg --no-check-signature install "$@"
 
     sed -i "/src\/gz openwrt_qbt file:\/\/${escaped_dir}/d" /etc/opkg/customfeeds.conf
-    rm -f /etc/opkg/keys/527ca1333af7875e
 
     [ "$add_arch" != 1 ] || sed -i '/# qbt add start/{:a;N;/# qbt add end/!ba;d}' /etc/opkg.conf
 }
@@ -109,7 +110,7 @@ case "$1" in
         echo ""
         echo "Commands:"
         echo "  list                          List available IPK packages"
-        echo "  install [pkgs...]             Install qbittorrent and related packages"
+        echo "  install [pkgs...]             Install qbittorrent backend (default: qbittorrent)"
         echo "  remove <pkgs...>              Remove qbittorrent packages"
         echo "  deploy-hdsentinel [target]    Deploy HDSentinel binary to router"
         echo "  check-glibc [binary...]       Check glibc compatibility"

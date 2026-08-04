@@ -55,6 +55,7 @@ source "$SCRIPT_DIR/modules/target_fixes.sh"
 source "$SCRIPT_DIR/modules/luci_fixes.sh"
 source "$SCRIPT_DIR/modules/service_fixes.sh"
 source "$SCRIPT_DIR/modules/glibc_compat.sh"
+source "$SCRIPT_DIR/modules/local_packages.sh"
 
 
 # 阶段顺序不可随意调整：feeds install 前后依赖的目录不同。
@@ -138,6 +139,7 @@ stage_pre_install_source_fixes() {
         echo "[跳过] GLIBC_COMPAT=${GLIBC_COMPAT} — 跳过 glibc 兼容层注入"
     fi
     install_led_control
+    install_local_packages
     install_prebuilt_ipks
 
 }
