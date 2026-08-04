@@ -1,6 +1,6 @@
 # 本地定制更改概览
 
-> **最后更新**: 2026-08-01
+> **最后更新**: 2026-08-04
 
 本仓库源自 [ZqinKing/wrt_release](https://github.com/ZqinKing/wrt_release)，在此基础上有以下本地定制。
 
@@ -44,6 +44,7 @@
 | 2026-08-01 | luci-app-adguardhome 切回官方源 | 注释 ZqinKing fork 替换逻辑，改用 openwrt/luci 官方版本 |
 | 2026-08-01 | sysupgrade.conf 覆写修复 | `add_backup_info_to_sysupgrade` 中 `>` 改为 `>>`，防止清除默认备份路径 |
 | 2026-08-01 | 自定义启动脚本增强 + 管理工具 | `find /` 搜索 + `.boot-enabled` 触发文件；新增 `scripts/setup_custom_boot.sh` 交互式/命令行创建任务 |
+| 2026-08-04 | `luci-app-adguardhome` 切回 kenzok8/small-package 源 | custom_feed 同步该包；16 机型 `CONFIG_PACKAGE_adguardhome=y` 二进制编入；清理悬空 `luci-i18n-adguardhome-zh-cn`；详见 [adguardhome-source-switch.md](./adguardhome-source-switch.md) |
 
 ## 定制清单
 
@@ -97,6 +98,7 @@
 | `openvpn-openssl` + `luci-app-openvpn-server`（DCO / FRAGMENT / LZ4） | `d100602` | OpenVPN 服务端 |
 | `tailscale` + `luci-app-tailscale` | `d100602` | Tailscale 虚拟组网（从 custom_feed 拉取） |
 | `jq` | `707f49e` | JSON 命令行处理工具 |
+| `adguardhome` + `luci-app-adguardhome` | 未提交 | AdGuardHome 切换 kenzok8/small-package 源，16 机型二进制核心编入固件；详见 [adguardhome-source-switch.md](./adguardhome-source-switch.md) |
 
 ### 6. 定制分支信息行
 
@@ -294,6 +296,7 @@ scripts/
 ├── install_glibc_compat.sh
 └── check_stock_leds.sh
 docs/
+├── adguardhome-source-switch.md
 ├── CHANGES.md
 ├── GLIBC_COMPAT.md
 ├── MAINTENANCE.md
