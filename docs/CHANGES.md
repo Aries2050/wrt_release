@@ -1,6 +1,6 @@
 # 本地定制更改概览
 
-> **最后更新**: 2026-08-04
+> **最后更新**: 2026-08-06
 
 本仓库源自 [ZqinKing/wrt_release](https://github.com/ZqinKing/wrt_release)，在此基础上有以下本地定制。
 
@@ -47,7 +47,10 @@
 | 2026-08-04 | `b7adf44` | custom_feed 同步该包；16 机型 `CONFIG_PACKAGE_adguardhome=y` 二进制编入；清理悬空 `luci-i18n-adguardhome-zh-cn`；详见 [adguardhome-source-switch.md](./adguardhome-source-switch.md) |
 | 2026-08-04 | `da108e8` | luci-app-qbittorrent 前端改为本地源码编译（`wrt_core/packages/` + `install_local_packages()`），删除 luci 预编译 IPK 及索引条目；预编译包仅保留 qbittorrent 后端；详见 [MAINTENANCE.md](./MAINTENANCE.md) |
 | 2026-08-04 | `fb657e2` | 文档与规范更新：CHANGES.md 提交列统一为实际哈希、MAINTENANCE.md 新增「CHANGES.md 修订时间线规范」、新增 AI 规范文件（AGENTS.md / `.github/copilot-instructions.md`）、`.gitignore` 取消忽略 AGENTS.md |
-| 2026-08-04 | `当前提交` | GitHub Actions 固件输出优化：`build_wrt.yml` 改为每个固件文件独立打包为单独 artifact（matrix 逐文件上传，不再合并为一个 zip） |
+| 2026-08-04 | `0fe6618` | GitHub Actions 固件输出优化：`build_wrt.yml` 改为每个固件文件独立打包为单独 artifact（matrix 逐文件上传，不再合并为一个 zip） |
+| 2026-08-06 | `96ffc2e` | 规范文档补充「回填哈希作为任务附加、不单独提交」约定（`docs/MAINTENANCE.md` / `.github/copilot-instructions.md` / `AGENTS.md`） |
+| 2026-08-06 | `96ffc2e` | 修复 ovpn-dco 编译失败（Linux 6.18.40+ 移除 `proto::recvmsg` 的 addr_len）：新增 `sync_ovpn_dco_patches()` 同步上游 `54c4f0f` 的 0001/0002 补丁到 feeds 版本，规避 `feeds install -a -f` 覆盖丢失 core 补丁 |
+| 2026-08-06 | `975c183` | 修复 luci-app-qbittorrent rpcd 插件无执行位：LuCI qBittorrent 页报 `luci.qbittorrent/get-version` `Object not found`；git 索引置为 `100755`（项目仅 GitHub Actions/Linux 编译，检出按索引应用执行位）；`install_local_packages()` 复制后强制 `chmod +x` `root/usr/libexec/rpcd/*` 兜底 |
 
 ## 定制清单
 
@@ -102,6 +105,8 @@
 | `adb` | `d100602` | Android Debug Bridge |
 | `7z` / `bsdtar` / `bzip2` / `cfdisk` / `cli` / `fdisk` / `lz4` / `lzmadec` / `lzmainfo` / `sfdisk` / `tar` / `unzip` / `zip` | `d100602` | 压缩与磁盘工具 |
 | `openvpn-openssl` + `luci-app-openvpn-server`（DCO / FRAGMENT / LZ4） | `d100602` | OpenVPN 服务端 |
+| ovpn-dco 编译修复 | `96ffc2e` | `sync_ovpn_dco_patches()`（`wrt_core/modules/feed_source_fixes.sh`）：同步上游 `54c4f0f` 的 0001/0002 补丁到 feeds 版本 ovpn-dco，修复 Linux 6.18.40+ `proto::recvmsg` addr_len 签名编译错误；规避 `feeds install -a -f` 覆盖丢失 core 补丁 |
+| luci-app-qbittorrent rpcd 修复 | `975c183` | rpcd 插件 `luci.qbittorrent` 置为可执行（git `100755`）；`install_local_packages()` 复制后强制 `chmod +x` `root/usr/libexec/rpcd/*`，修复 LuCI qBittorrent 页 `Object not found` |
 | `tailscale` + `luci-app-tailscale` | `d100602` | Tailscale 虚拟组网（从 custom_feed 拉取） |
 | `jq` | `707f49e` | JSON 命令行处理工具 |
 | `adguardhome` + `luci-app-adguardhome` | `b7adf44` | AdGuardHome 切换 kenzok8/small-package 源，16 机型二进制核心编入固件；详见 [adguardhome-source-switch.md](./adguardhome-source-switch.md) |

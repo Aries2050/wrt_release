@@ -272,3 +272,29 @@ remove_tweaked_packages() {
         fi
     fi
 }
+
+sync_ovpn_dco_patches() {
+    # 上游 54c4f0f 在 core package/kernel/ovpn-dco 新增兼容补丁：
+    #   0002-fix-6-18-40-recvmsg-signature（适配 Linux 6.18.40+ 移除 proto::recvmsg 的 addr_len）
+    #   0001-do-not-use-EIP-197（禁用与 SafeXcel EIP-197 加密引擎不兼容的异步路径）
+    # 但 install_feeds 使用 `-f` 强制以 feeds 版本覆盖 core 包（install_feeds → feeds install -a -f），
+    # 导致 core 内补丁不生效、ovpn-backports 在 6.18.40+ 内核下编译失败。
+    # 这里把 core 补丁同步到 feeds 版本（feeds/packages/kernel/ovpn-dco/patches/），
+    # 编译时即自动应用到 ovpn-backports 源码。
+    local core_patches="$BUILD_DIR/package/kernel/ovpn-dco/patches"
+    local feeds_dir="$BUILD_DIR/feeds/packages/kernel/ovpn-dco"
+    local feeds_patches="$feeds_dir/patches"
+
+    if [[ -d "$core_patches" && -d "$feeds_dir" ]]; then
+        mkdir -p "$feeds_patches"
+        for patch in "$core_patches"/*.patch; do
+            [[ -f "$patch" ]] || continue
+            local name
+            name=$(basename "$patch")
+            if [[ ! -f "$feeds_patches/$name" ]]; then
+                cp "$patch" "$feeds_patches/"
+                echo "ovpn-dco: 同步补丁 $name 至 feeds 版本（规避 -f 覆盖丢失 core 补丁）"
+            fi
+        done
+    fi
+}
