@@ -32,6 +32,12 @@ install_local_packages() {
         fi
         rm -rf "$BUILD_DIR/package/$pkg_name"
         cp -a "$pkg_dir" "$BUILD_DIR/package/$pkg_name"
+        # rpcd 插件（root/usr/libexec/rpcd/*）必须可执行，否则 rpcd 无法加载、
+        # LuCI 报 "Object not found"。复制到编译树后强制补执行位作为兜底
+        # （项目仅 GitHub Actions/Linux 编译，检出时已按索引 100755 应用执行位）。
+        if [[ -d "$BUILD_DIR/package/$pkg_name/root/usr/libexec/rpcd" ]]; then
+            chmod +x "$BUILD_DIR/package/$pkg_name"/root/usr/libexec/rpcd/*
+        fi
         echo "  [OK] $pkg_name → package/$pkg_name"
         count=$((count + 1))
     done

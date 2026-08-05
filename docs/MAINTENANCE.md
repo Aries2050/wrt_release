@@ -84,7 +84,7 @@ qBittorrent 本体及 `luci-app-qbittorrent` 前端均来源于恩山无线论�
 > https://www.right.com.cn/forum/thread-1456090-1-1.html
 
 - **qBittorrent 本体**（`wrt_core/prebuilt_packages/pkgs/qbittorrent_5.1.4-r1_aarch64_cortex-a53.ipk`）：无法源码编译，编译期由 `install_prebuilt_ipks()` 解压注入固件 `BUILD_DIR/files/`，提供 `/usr/bin/qbittorrent-nox`、`/etc/init.d/qbittorrent`、`/etc/config/qbittorrent`。
-- **luci-app-qbittorrent 前端**（`wrt_core/packages/luci-app-qbittorrent/`）：为本地源码编译（由 `install_local_packages()` 接入 `package/`）。仅提供 LuCI 配置界面，不含 qBittorrent 本体与 WebUI；编译期依赖 luci-base，运行期依赖 qbittorrent 后端。
+- **luci-app-qbittorrent 前端**（`wrt_core/packages/luci-app-qbittorrent/`）：为本地源码编译（由 `install_local_packages()` 接入 `package/`）。仅提供 LuCI 配置界面，不含 qBittorrent 本体与 WebUI；编译期依赖 luci-base，运行期依赖 qbittorrent 后端。rpcd 插件 `root/usr/libexec/rpcd/luci.qbittorrent` 必须可执行（git 模式 `100755`），否则 rpcd 无法加载、LuCI 报 `Object not found`；`install_local_packages()` 复制到编译树后强制 `chmod +x` 兜底。本项目仅通过 GitHub Actions（Linux）编译，检出时按索引应用执行位。
 
 ## 构建阶段流程
 
