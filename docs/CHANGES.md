@@ -53,7 +53,7 @@
 | 2026-08-05 | `4ff9c9d` | 修复 RTL8812BU 无法识别（`0bda:b812`）：主线 rtw88 增加 `kmod-rtw88-8822bu` + `rtl8822be-firmware`（8822B spec 认领该 ID），与 `kmod-rtw88-8812au` 并存 |
 | 2026-08-06 | `96ffc2e` | 规范文档补充「回填哈希作为任务附加、不单独提交」约定（`docs/MAINTENANCE.md` / `.github/copilot-instructions.md` / `AGENTS.md`） |
 | 2026-08-06 | `96ffc2e` | 修复 ovpn-dco 编译失败（Linux 6.18.40+ 移除 `proto::recvmsg` 的 addr_len）：新增 `sync_ovpn_dco_patches()` 同步上游 `54c4f0f` 的 0001/0002 补丁到 feeds 版本，规避 `feeds install -a -f` 覆盖丢失 core 补丁 |
-| 2026-08-06 | `当前提交` | 修复 luci-app-qbittorrent rpcd 插件无执行位：LuCI qBittorrent 页报 `luci.qbittorrent/get-version` `Object not found`；git 索引置为 `100755`（项目仅 GitHub Actions/Linux 编译，检出按索引应用执行位）；`install_local_packages()` 复制后强制 `chmod +x` `root/usr/libexec/rpcd/*` 兜底 |
+| 2026-08-06 | `975c183` | 修复 luci-app-qbittorrent rpcd 插件无执行位：LuCI qBittorrent 页报 `luci.qbittorrent/get-version` `Object not found`；git 索引置为 `100755`（项目仅 GitHub Actions/Linux 编译，检出按索引应用执行位）；`install_local_packages()` 复制后强制 `chmod +x` `root/usr/libexec/rpcd/*` 兜底 |
 
 ## 定制清单
 
@@ -109,7 +109,7 @@
 | `7z` / `bsdtar` / `bzip2` / `cfdisk` / `cli` / `fdisk` / `lz4` / `lzmadec` / `lzmainfo` / `sfdisk` / `tar` / `unzip` / `zip` | `d100602` | 压缩与磁盘工具 |
 | `openvpn-openssl` + `luci-app-openvpn-server`（DCO / FRAGMENT / LZ4） | `d100602` | OpenVPN 服务端 |
 | ovpn-dco 编译修复 | `96ffc2e` | `sync_ovpn_dco_patches()`（`wrt_core/modules/feed_source_fixes.sh`）：同步上游 `54c4f0f` 的 0001/0002 补丁到 feeds 版本 ovpn-dco，修复 Linux 6.18.40+ `proto::recvmsg` addr_len 签名编译错误；规避 `feeds install -a -f` 覆盖丢失 core 补丁 |
-| luci-app-qbittorrent rpcd 修复 | `当前提交` | rpcd 插件 `luci.qbittorrent` 置为可执行（git `100755`）；`install_local_packages()` 复制后强制 `chmod +x` `root/usr/libexec/rpcd/*`，修复 LuCI qBittorrent 页 `Object not found` |
+| luci-app-qbittorrent rpcd 修复 | `975c183` | rpcd 插件 `luci.qbittorrent` 置为可执行（git `100755`）；`install_local_packages()` 复制后强制 `chmod +x` `root/usr/libexec/rpcd/*`，修复 LuCI qBittorrent 页 `Object not found` |
 | `tailscale` + `luci-app-tailscale` | `d100602` | Tailscale 虚拟组网（从 custom_feed 拉取） |
 | `jq` | `707f49e` | JSON 命令行处理工具 |
 | `kmod-rt2800-usb` / `rt2800-usb-firmware` | `feat/add-usb-wifi-drivers` | RT3070/Ralink RT2870 USB 无线网卡驱动和固件 |
