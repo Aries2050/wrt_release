@@ -85,6 +85,7 @@ stage_custom_feed_prepare() {
 stage_pre_install_source_fixes() {
     # 这里仅修改源码树与 feeds/*，不能依赖 package/feeds/*。
     update_homeproxy
+    sync_ovpn_dco_patches
     fix_default_set
     fix_miniupnpd
     update_golang

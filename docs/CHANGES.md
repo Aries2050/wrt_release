@@ -1,6 +1,6 @@
 # 本地定制更改概览
 
-> **最后更新**: 2026-08-05
+> **最后更新**: 2026-08-06
 
 本仓库源自 [ZqinKing/wrt_release](https://github.com/ZqinKing/wrt_release)，在此基础上有以下本地定制。
 
@@ -50,7 +50,9 @@
 | 2026-08-04 | `da108e8` | luci-app-qbittorrent 前端改为本地源码编译（`wrt_core/packages/` + `install_local_packages()`），删除 luci 预编译 IPK 及索引条目；预编译包仅保留 qbittorrent 后端；详见 [MAINTENANCE.md](./MAINTENANCE.md) |
 | 2026-08-04 | `fb657e2` | 文档与规范更新：CHANGES.md 提交列统一为实际哈希、MAINTENANCE.md 新增「CHANGES.md 修订时间线规范」、新增 AI 规范文件（AGENTS.md / `.github/copilot-instructions.md`）、`.gitignore` 取消忽略 AGENTS.md |
 | 2026-08-04 | `0fe6618` | GitHub Actions 固件输出优化：`build_wrt.yml` 改为每个固件文件独立打包为单独 artifact（matrix 逐文件上传，不再合并为一个 zip） |
-| 2026-08-05 | `当前提交` | 修复 RTL8812BU 无法识别（`0bda:b812`）：主线 rtw88 增加 `kmod-rtw88-8822bu` + `rtl8822be-firmware`（8822B spec 认领该 ID），与 `kmod-rtw88-8812au` 并存 |
+| 2026-08-05 | `4ff9c9d` | 修复 RTL8812BU 无法识别（`0bda:b812`）：主线 rtw88 增加 `kmod-rtw88-8822bu` + `rtl8822be-firmware`（8822B spec 认领该 ID），与 `kmod-rtw88-8812au` 并存 |
+| 2026-08-05 | `当前提交` | 规范文档补充「回填哈希作为任务附加、不单独提交」约定（`docs/MAINTENANCE.md` / `.github/copilot-instructions.md` / `AGENTS.md`） |
+| 2026-08-06 | `当前提交` | 修复 ovpn-dco 编译失败（Linux 6.18.40+ 移除 `proto::recvmsg` 的 addr_len）：新增 `sync_ovpn_dco_patches()` 同步上游 `54c4f0f` 的 0001/0002 补丁到 feeds 版本，规避 `feeds install -a -f` 覆盖丢失 core 补丁 |
 
 ## 定制清单
 
@@ -105,11 +107,12 @@
 | `adb` | `d100602` | Android Debug Bridge |
 | `7z` / `bsdtar` / `bzip2` / `cfdisk` / `cli` / `fdisk` / `lz4` / `lzmadec` / `lzmainfo` / `sfdisk` / `tar` / `unzip` / `zip` | `d100602` | 压缩与磁盘工具 |
 | `openvpn-openssl` + `luci-app-openvpn-server`（DCO / FRAGMENT / LZ4） | `d100602` | OpenVPN 服务端 |
+| ovpn-dco 编译修复 | `当前提交` | `sync_ovpn_dco_patches()`（`wrt_core/modules/feed_source_fixes.sh`）：同步上游 `54c4f0f` 的 0001/0002 补丁到 feeds 版本 ovpn-dco，修复 Linux 6.18.40+ `proto::recvmsg` addr_len 签名编译错误；规避 `feeds install -a -f` 覆盖丢失 core 补丁 |
 | `tailscale` + `luci-app-tailscale` | `d100602` | Tailscale 虚拟组网（从 custom_feed 拉取） |
 | `jq` | `707f49e` | JSON 命令行处理工具 |
 | `kmod-rt2800-usb` / `rt2800-usb-firmware` | `feat/add-usb-wifi-drivers` | RT3070/Ralink RT2870 USB 无线网卡驱动和固件 |
 | `kmod-rtw88-8812au` / `rtl8812a-firmware` | `feat/add-usb-wifi-drivers` | RTL8812AU USB 无线网卡主线驱动（`rtw88` 8812A spec，无线主线 backport） |
-| `kmod-rtw88-8822bu` / `rtl8822be-firmware` | `当前提交` | RTL8812BU/RTL8822BU USB 无线网卡主线驱动（`rtw88` 8822B spec，认领 `0bda:b812`）；与 8812au 并存 |
+| `kmod-rtw88-8822bu` / `rtl8822be-firmware` | `4ff9c9d` | RTL8812BU/RTL8822BU USB 无线网卡主线驱动（`rtw88` 8822B spec，认领 `0bda:b812`）；与 8812au 并存 |
 | `adguardhome` + `luci-app-adguardhome` | `b7adf44` | AdGuardHome 切换 kenzok8/small-package 源，16 机型二进制核心编入固件；详见 [adguardhome-source-switch.md](./adguardhome-source-switch.md) |
 
 ### 6. 定制分支信息行
