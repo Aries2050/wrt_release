@@ -1,6 +1,19 @@
 #!/usr/bin/env bash
 # custom_feed 同步、注册和路径辅助。
 
+# ⭐ 本地定制：构建访问 github.com 的认证参数（供自有仓库认证）。
+# GitHub Actions 构建时注入 GITHUB_TOKEN；本地构建无 token 时返回空，回退本机 git 凭据。
+build_github_auth_args() {
+    local -n args_ref="$1"
+    local b64
+    args_ref=()
+    if [ -n "${GITHUB_TOKEN:-}" ]; then
+        b64=$(printf '%s' "x-access-token:${GITHUB_TOKEN}" | base64 -w0 2>/dev/null || printf '%s' "x-access-token:${GITHUB_TOKEN}" | base64 | tr -d '\n')
+        args_ref=(-c "http.https://github.com/.extraheader=AUTHORIZATION: basic ${b64}")
+    fi
+}
+
+
 get_custom_feed_name() {
     printf '%s\n' "custom_feed"
 }
@@ -34,8 +47,12 @@ sync_sparse_packages_to_feed_dir() {
     local packages=("$@")
     local tmp_dir
     local missing_packages=()
-    local clone_args=(clone --depth 1 --filter=blob:none --sparse)
+    local clone_args=()
+    local auth_args=()
     local pkg
+
+    build_github_auth_args auth_args
+    clone_args=("${auth_args[@]}" clone --depth 1 --filter=blob:none --sparse)
 
     tmp_dir=$(mktemp -d)
 
@@ -84,7 +101,11 @@ sync_repo_root_package_to_feed_dir() {
     local repo_label="$4"
     local package_name="$5"
     local tmp_dir
-    local clone_args=(clone --depth 1 --filter=blob:none)
+    local clone_args=()
+    local auth_args=()
+
+    build_github_auth_args auth_args
+    clone_args=("${auth_args[@]}" clone --depth 1 --filter=blob:none)
 
     tmp_dir=$(mktemp -d)
 
@@ -159,7 +180,7 @@ install_custom_feed() {
         xray-core xray-plugin dns2tcp dns2socks haproxy hysteria \
         naiveproxy shadowsocks-rust sing-box v2ray-core v2ray-geodata geoview v2ray-plugin \
         tuic-client chinadns-ng ipt2socks tcping trojan-plus simple-obfs shadowsocksr-libev \
-        v2dat adguardhome luci-app-adguardhome ddns-go \
+        v2dat adguardhome ddns-go \
         luci-app-ddns-go taskd luci-lib-xterm luci-lib-taskd luci-app-store quickstart \
         luci-app-quickstart luci-app-istorex luci-app-cloudflarespeedtest netdata luci-app-netdata \
         lucky luci-app-lucky luci-app-openclash luci-app-homeproxy luci-app-amlogic \
@@ -218,6 +239,22 @@ install_custom_feed() {
             return 1
         fi
     done
+
+    # ⭐ 本地定制：luci-app-adguardhome 改用自有仓库 Aries2050/luci-app-adguardhome 版本
+    # （覆盖上面 kenzok8/small-package 中的同名包；有 GITHUB_TOKEN 时自动认证，无则用本机 git 凭据）
+    # 2026-08-13：仓库已重构为单包仓库（根目录 Makefile），改用整仓同步。
+    if ! sync_repo_root_package_to_feed_dir \
+        "https://github.com/Aries2050/luci-app-adguardhome.git" \
+        "master" "$custom_feed_dir" "Aries2050/luci-app-adguardhome" "luci-app-adguardhome"; then
+        rm -rf "$custom_feed_dir"
+        return 1
+    fi
+
+    # ⭐ 本地定制：rpcd 插件必须可执行（100755），否则 rpcd 无法加载、LuCI 报 "Object not found"。
+    # 源头已修复为 100755（2026-08-13）；此处保留幂等兑底（与 local_packages.sh 处理一致）。
+    if [ -d "$custom_feed_dir/luci-app-adguardhome/root/usr/libexec/rpcd" ]; then
+        chmod +x "$custom_feed_dir/luci-app-adguardhome"/root/usr/libexec/rpcd/*
+    fi
 
     if ! sync_repo_root_package_to_feed_dir "https://github.com/adminchenyu/eMMC-Health.git" "main" "$custom_feed_dir" "adminchenyu/eMMC-Health" "luci-app-emmc-health"; then
         rm -rf "$custom_feed_dir"

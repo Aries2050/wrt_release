@@ -2,6 +2,7 @@
 
 > 日期：2026-08-04
 > 状态：**已提交**（`b7adf44`，2026-08-04）
+> **更新（2026-08-13，`当前提交`）**：`luci-app-adguardhome` 界面再次切换为**自有仓库 `Aries2050/luci-app-adguardhome`**（JS 前端版；同日仓库重构为单包仓库，改为整仓同步），详见文末「9. 自有仓库源切换」。
 
 ## 1. 目标
 
@@ -100,4 +101,56 @@ feat: luci-app-adguardhome 切换到 kenzok8/small-package 源并内置二进制
 - verify.sh: 恢复 luci-app-adguardhome 安装校验
 - 16 个机型 config: 增加 CONFIG_PACKAGE_adguardhome=y（核心编入固件）
 - compile_base.config / redmi_ax6000: 清理悬空 luci-i18n-adguardhome-zh-cn
+```
+
+---
+
+## 9. 自有仓库源切换（2026-08-13，`当前提交`）
+
+### 9.1 目标
+
+将 `luci-app-adguardhome`（LuCI 界面）从 **kenzok8/small-package** 切换为 **自有仓库 `Aries2050/luci-app-adguardhome`**（分支 `master`）维护的版本。`adguardhome` 二进制核心保持 kenzok8/small-package 源（16 机型 `CONFIG_PACKAGE_adguardhome=y` 不变）。
+
+### 9.2 自有仓库包特征（`luci-app-adguardhome`，PKG_VERSION 2.0，PKG_MAINTAINER=Aoi）
+
+> **2026-08-13 仓库重构**：原 `luci-app-adguardhome/` 子目录包提升为**单包仓库**（根目录 `Makefile`），`htdocs/`、`po/`、`root/` 直接位于根；原 `.deploy/` 改名 `tools/`；新增 rpcd 插件 `root/usr/libexec/rpcd/luci.adguardhome`、`root/usr/share/adguardhome/*`（addhost/hosts_watch/tailto/update_core 等）及 `menu.d`/`acl.d`。
+
+- **前端**：JS（`luci.mk`，`htdocs/luci-static/resources/view/adguardhome/*`，fw4/fw3）
+- **依赖**：`+luci-base +curl +wget-ssl +adguardhome`（二进制核心来自 kenzok8 源，已编入固件）
+- **init**：postinst 接管小写 `/etc/init.d/adguardhome`（覆盖官方同名脚本以获得重定向/劫持能力）
+- **rpcd**：`root/usr/libexec/rpcd/luci.adguardhome`（源头 git mode 已修复为 `100755`；构建侧保留幂等 `chmod +x` 兑底，否则 rpcd 无法加载、LuCI 报 `Object not found`）
+- **无** `INCLUDE_binary` 选项（与 kenzok8 Lua 版不同，对应悬空配置已从 16 机型 config 清理）
+- **po**：含 `po/zh_Hans`（生成 `luci-i18n-adguardhome-zh-cn` 符号，config 未勾选不编入；界面自带中文）
+
+### 9.3 改动明细
+
+| 文件 | 改动 |
+|------|------|
+| `wrt_core/modules/custom_feed.sh` | 新增 `build_github_auth_args()`：`GITHUB_TOKEN` 存在时以 `x-access-token` extraheader 认证访问 github.com（GitHub Actions 构建）；无 token 时回退本机 git 凭据 |
+| `wrt_core/modules/custom_feed.sh` | `base_custom_feed_packages` 移除 `luci-app-adguardhome`（kenzok8 不再提供该界面包） |
+| `wrt_core/modules/custom_feed.sh` | `install_custom_feed()` 在 kenzok8 同步后，从 `Aries2050/luci-app-adguardhome.git`（master）以 `sync_repo_root_package_to_feed_dir()` 整仓同步（2026-08-13 起：仓库重构为单包仓库，根目录 `Makefile`）覆盖 |
+| `wrt_core/modules/custom_feed.sh` | 同步后对 `root/usr/libexec/rpcd/*` 强制 `chmod +x`（幂等兑底；源头 git mode 已于 2026-08-13 修复为 `100755`，同 `local_packages.sh` 处理） |
+| 16 个机型 `deconfig/*.config` | 删除悬空 `CONFIG_PACKAGE_luci-app-adguardhome_INCLUDE_binary`（自有版无此符号） |
+
+### 9.4 认证与构建
+
+- **GitHub Actions**（默认 `./build.sh`）：workflow env 已注入 `GITHUB_TOKEN`（`${{ secrets.GITHUB_TOKEN }}`），可认证访问自有仓库 `Aries2050/luci-app-adguardhome`（公开后无需认证也可拉取）。
+- **本地/容器构建**：容器模式 `docker run` 未传 `GITHUB_TOKEN`，需本机 git 凭据（credential manager）；若拉取失败，custom_feed 阶段会报错终止。
+
+### 9.5 验证清单
+
+- [x] `custom_feed.sh` bash 语法 `bash -n` 通过
+- [x] 16 机型 config 无 `INCLUDE_binary` 残留（`grep -r INCLUDE_binary wrt_core/deconfig` 应为空）
+- [x] 自有仓库 master 分支确认根目录含 `Makefile`（单包仓库），rpcd 插件 `luci.adguardhome` 源头 git mode 已修复为 `100755`（构建侧保留幂等兑底）
+- [x] 实测整仓同步（`x-access-token` extraheader）成功，`Makefile`/`htdocs`/`po`/`root` 完整
+
+### 9.6 建议提交信息
+
+```
+feat: luci-app-adguardhome 界面切换到自有仓库 Aries2050/luci-app-adguardhome（单包仓库）
+
+- custom_feed.sh: 新增 build_github_auth_args()（GITHUB_TOKEN 认证）
+- custom_feed.sh: luci-app-adguardhome 从 kenzok8/small-package 改为自有仓库整仓同步覆盖（sync_repo_root_package_to_feed_dir）
+- custom_feed.sh: 同步后强制 chmod +x root/usr/libexec/rpcd/*（rpcd 插件执行位兜底）
+- 16 个机型 config: 删除悬空 CONFIG_PACKAGE_luci-app-adguardhome_INCLUDE_binary
 ```

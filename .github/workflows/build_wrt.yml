@@ -440,7 +440,7 @@ jobs:
         id: list-firmware
         run: |
           cd ./firmware
-          files=$(ls -1 2>/dev/null | jq -R -s -c 'split("\n") | map(select(. != ""))')
+          files=$(find . -maxdepth 1 -type f 2>/dev/null | sed 's|^\./||' | sort | jq -R -s -c 'split("\n") | map(select(. != ""))')
           echo "files=$files" >> "$GITHUB_OUTPUT"
           echo "检测到固件文件: $files"
 
@@ -450,6 +450,14 @@ jobs:
         with:
           name: ${{ env.BUILD_DATE }}_${{ inputs.model }}
           path: ./firmware/*.*
+
+      # ⭐ 本地定制：独立 IPK/APK 包随固件一起交付（包编入固件的同时，可单独 opkg 安装/升级）
+      - name: Upload Independent Packages (IPK)
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: ${{ env.BUILD_DATE }}_${{ inputs.model }}_packages
+          path: ./firmware/packages
+          if-no-files-found: warn
 
   # 每个固件文件独立打包为单独 artifact
   upload-per-file:
