@@ -155,6 +155,35 @@ fix_emmc_health_luci_js_deps() {
 }
 
 
+# ⭐ 本地定制：luci-app-tailscale 与 tailscale 二进制核心包文件冲突处理。
+# kenzok8/small-package 的 luci-app-tailscale 自带 /etc/init.d/tailscale 与
+# /etc/config/tailscale，与同源 tailscale 二进制包（同样安装这两路径）在 apk/opkg
+# 严格文件 ownership 检查下冲突 → 移除这两个静态文件（由二进制包提供）；
+# 但二进制包 config 缺失 luci-app 界面/hotplug 依赖的字段（enabled 等），
+# 故在 uci-defaults 首次开机时幂等补充（存在则跳过，不覆盖用户值）。
+fix_luci_app_tailscale_conflict() {
+    local package_dir="$1"
+    local uci_defaults_path="$package_dir/root/etc/uci-defaults/40_luci-tailscale"
+
+    rm -f "$package_dir/root/etc/config/tailscale"
+    rm -f "$package_dir/root/etc/init.d/tailscale"
+
+    if [ -f "$uci_defaults_path" ]; then
+        grep -q "tailscale.settings.enabled" "$uci_defaults_path" && return 0
+        sed -i '/^exit 0$/i\
+# ⭐ 本地定制：补充二进制包 config 缺失的 luci-app 界面/hotplug 依赖字段（幂等）\
+if ! uci -q get tailscale.settings.enabled >/dev/null 2>&1; then\
+    uci -q set tailscale.settings.enabled=0\
+    uci -q set tailscale.settings.config_path=/etc/tailscale\
+    uci -q set tailscale.settings.accept_dns=1\
+    uci -q commit tailscale\
+fi\
+' "$uci_defaults_path"
+        echo "已处理 luci-app-tailscale 与 tailscale 二进制包的文件冲突（移除静态 config/init，uci-defaults 幂等补充字段）。"
+    fi
+}
+
+
 register_local_feed_source() {
     local custom_feed_dir="$1"
     local feeds_path="$2"
@@ -248,6 +277,14 @@ install_custom_feed() {
         "master" "$custom_feed_dir" "Aries2050/luci-app-adguardhome" "luci-app-adguardhome"; then
         rm -rf "$custom_feed_dir"
         return 1
+    fi
+
+    # ⭐ 本地定制：luci-app-tailscale 与 tailscale 二进制包文件冲突处理（APK 严格 ownership 检查）
+    if [ -d "$custom_feed_dir/luci-app-tailscale" ]; then
+        if ! fix_luci_app_tailscale_conflict "$custom_feed_dir/luci-app-tailscale"; then
+            rm -rf "$custom_feed_dir"
+            return 1
+        fi
     fi
 
     # ⭐ 本地定制：rpcd 插件必须可执行（100755），否则 rpcd 无法加载、LuCI 报 "Object not found"。

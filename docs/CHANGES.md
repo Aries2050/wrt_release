@@ -60,8 +60,9 @@
 | 2026-08-14 | `5346670` | APK 适配收尾：`prebuilt_packages/install.sh` 的 qbt 安装/卸载加 APK 分支（`command -v apk` 检测，提示固件已内置）；Pre-build/Verify 预编译包检查兼容 ipk/apk；`check_prebuilt.py` 文案适配 |
 | 2026-08-14 | `5346670` | 全面检查修复：`PACKAGE_MANAGER` 默认值 opkg→**apk**（17 个未设置 INI 的设备在全局 `USE_APK=y` 下软件源错配）；`service_fixes.sh` 兜底默认值统一为 apk；APK distfeeds 首次启动 mv 前加 `mkdir -p /etc/apk/repositories.d` 兜底 |
 | 2026-08-14 | `5346670` | LuCI 包管理界面：启用 `luci-app-package-manager`（APK 原生界面，`PKG_PROVIDES:=luci-app-opkg`，自动检测 apk/opkg），移除 legacy `luci-lib-ipkg` |
-| 2026-08-14 | `当前提交` | dockerman 改用 immortalwrt 官方 ucode 版（停用 lisaac 覆盖）：lisaac 版依赖 `luci-lib-docker`（`PKG_VERSION:=v0.3.4` 带 `v` 前缀，APK 打包版本号无效导致 `luci-lib-docker-v0.3.4-r1.apk` 构建失败）；官方版不依赖该库且自带 zh_Hans 中文；`update.sh` 不再调用 `update_dockerman()`，`docker.sh` 的 dockerman nftables 补丁对官方版自动 no-op（官方版无 `init.d/dockerman`） |
-| 2026-08-15 | `当前提交` | argon 主题换回官方 jerrykuku 源（`wrt_core/modules/package_source_updates.sh` `update_argon()`）：ZqinKing fork（2.4.3，2026-03 停更）ucode 模板用 `import { srand } from 'math'`（登录页随机背景）但 Makefile 漏声明 `+ucode-mod-math` → 固件缺 `math.so` → LuCI `header.ut` 编译失败（500）；官方版（2.4.6+）模板不用 math 模块，持续维护 |
+| 2026-08-14 | `ba0dd97` | dockerman 改用 immortalwrt 官方 ucode 版（停用 lisaac 覆盖）：lisaac 版依赖 `luci-lib-docker`（`PKG_VERSION:=v0.3.4` 带 `v` 前缀，APK 打包版本号无效导致 `luci-lib-docker-v0.3.4-r1.apk` 构建失败）；官方版不依赖该库且自带 zh_Hans 中文；`update.sh` 不再调用 `update_dockerman()`，`docker.sh` 的 dockerman nftables 补丁对官方版自动 no-op（官方版无 `init.d/dockerman`） |
+| 2026-08-15 | `6d6203d` | argon 主题换回官方 jerrykuku 源（`wrt_core/modules/package_source_updates.sh` `update_argon()`）：ZqinKing fork（2.4.3，2026-03 停更）ucode 模板用 `import { srand } from 'math'`（登录页随机背景）但 Makefile 漏声明 `+ucode-mod-math` → 固件缺 `math.so` → LuCI `header.ut` 编译失败（500）；官方版（2.4.6+）模板不用 math 模块，持续维护 |
+| 2026-08-15 | `当前提交` | 修复 luci-app-tailscale 与 tailscale 二进制包文件冲突（APK 严格 ownership 检查）：`custom_feed.sh` 同步 kenzok8 版后移除其自带 `/etc/config/tailscale` 与 `/etc/init.d/tailscale`（由二进制包提供），并在 uci-defaults/40_luci-tailscale 首次开机幂等补充二进制包 config 缺失的界面/hotplug 依赖字段（enabled/config_path/accept_dns） |
 
 ## 定制清单
 
@@ -104,7 +105,7 @@
 | 包 | 提交 | 说明 |
 |----|------|------|
 | `kmod-mt7921u` / `kmod-mt7921-firmware` / `kmod-mt7921-common` | `d100602` | MT7921U USB 无线网卡驱动和固件 |
-| `luci-app-dockerman` + 中文本地化 | `d100602`；`当前提交` 起改官方 ucode 版 | Docker 管理面板；原 lisaac 版依赖 `luci-lib-docker`（v0.3.4 带 v 前缀，APK 打包版本号无效），2026-08-14 起停用 lisaac 覆盖、改用 immortalwrt 官方版（不依赖该库、自带 zh_Hans，见修订时间线） |
+| `luci-app-dockerman` + 中文本地化 | `d100602`；`ba0dd97` 起改官方 ucode 版 | Docker 管理面板；原 lisaac 版依赖 `luci-lib-docker`（v0.3.4 带 v 前缀，APK 打包版本号无效），2026-08-14 起停用 lisaac 覆盖、改用 immortalwrt 官方版（不依赖该库、自带 zh_Hans，见修订时间线） |
 | `luci-app-easymesh` | `d100602` | EasyMesh 组网 |
 | `luci-app-openlist` | `d100602` | OpenList 应用 |
 | `luci-app-openclash` | `d100602` | OpenClash 代理客户端 |
@@ -118,7 +119,7 @@
 | `openvpn-openssl` + `luci-app-openvpn-server`（DCO / FRAGMENT / LZ4） | `d100602` | OpenVPN 服务端 |
 | ovpn-dco 编译修复 | `96ffc2e` | `sync_ovpn_dco_patches()`（`wrt_core/modules/feed_source_fixes.sh`）：同步上游 `54c4f0f` 的 0001/0002 补丁到 feeds 版本 ovpn-dco，修复 Linux 6.18.40+ `proto::recvmsg` addr_len 签名编译错误；规避 `feeds install -a -f` 覆盖丢失 core 补丁 |
 | luci-app-qbittorrent rpcd 修复 | `975c183` | rpcd 插件 `luci.qbittorrent` 置为可执行（git `100755`）；`install_local_packages()` 复制后强制 `chmod +x` `root/usr/libexec/rpcd/*`，修复 LuCI qBittorrent 页 `Object not found` |
-| `tailscale` + `luci-app-tailscale` | `d100602` | Tailscale 虚拟组网（从 custom_feed 拉取） |
+| `tailscale` + `luci-app-tailscale` | `d100602`；`当前提交` 起处理 APK 文件冲突 | Tailscale 虚拟组网（从 custom_feed 拉取）；2026-08-15 起移除 luci-app-tailscale 自带 config/init（与二进制包冲突），uci-defaults 幂等补充字段（见修订时间线） |
 | `jq` | `707f49e` | JSON 命令行处理工具 |
 | `kmod-rt2800-usb` / `rt2800-usb-firmware` | `feat/add-usb-wifi-drivers` | RT3070/Ralink RT2870 USB 无线网卡驱动和固件 |
 | `kmod-rtw88-8812au` / `rtl8812a-firmware` | `feat/add-usb-wifi-drivers` | RTL8812AU USB 无线网卡主线驱动（`rtw88` 8812A spec，无线主线 backport） |
