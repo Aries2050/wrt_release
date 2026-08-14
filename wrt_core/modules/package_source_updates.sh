@@ -240,7 +240,12 @@ add_quickfile() {
 
 
 update_argon() {
-    local repo_url="https://github.com/ZqinKing/luci-theme-argon.git"
+    # ⭐ 本地定制：argon 主题改用官方 jerrykuku 源（2026-08-15）
+    # 原因：ZqinKing fork（2.4.3，2026-03 停更）的 ucode 模板使用
+    # `import { srand } from 'math'`（登录页随机背景），但 Makefile 漏声明
+    # `+ucode-mod-math` → 固件缺 math.so → LuCI 报 header.ut 编译失败（500）。
+    # 官方版（2.4.6+）ucode 模板不使用 math 模块，无此问题，且持续维护。
+    local repo_url="https://github.com/jerrykuku/luci-theme-argon.git"
     local dst_theme_path="$BUILD_DIR/feeds/luci/themes/luci-theme-argon"
     local tmp_dir
     tmp_dir=$(mktemp -d)

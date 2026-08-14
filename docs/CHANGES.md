@@ -1,6 +1,6 @@
 # 本地定制更改概览
 
-> **最后更新**: 2026-08-04
+> **最后更新**: 2026-08-15
 
 本仓库源自 [ZqinKing/wrt_release](https://github.com/ZqinKing/wrt_release)，在此基础上有以下本地定制。
 
@@ -50,6 +50,7 @@
 | 2026-08-04 | `da108e8` | luci-app-qbittorrent 前端改为本地源码编译（`wrt_core/packages/` + `install_local_packages()`），删除 luci 预编译 IPK 及索引条目；预编译包仅保留 qbittorrent 后端；详见 [MAINTENANCE.md](./MAINTENANCE.md) |
 | 2026-08-04 | `fb657e2` | 文档与规范更新：CHANGES.md 提交列统一为实际哈希、MAINTENANCE.md 新增「CHANGES.md 修订时间线规范」、新增 AI 规范文件（AGENTS.md / `.github/copilot-instructions.md`）、`.gitignore` 取消忽略 AGENTS.md |
 | 2026-08-04 | `当前提交` | GitHub Actions 固件输出优化：`build_wrt.yml` 改为每个固件文件独立打包为单独 artifact（matrix 逐文件上传，不再合并为一个 zip） |
+| 2026-08-15 | `当前提交` | argon 主题换回官方 jerrykuku 源（`wrt_core/modules/package_source_updates.sh` `update_argon()`）：ZqinKing fork（2.4.3，2026-03 停更）ucode 模板用 `import { srand } from 'math'`（登录页随机背景）但 Makefile 漏声明 `+ucode-mod-math` → 固件缺 `math.so` → LuCI `header.ut` 编译失败（500）；官方版（2.4.6+）模板不用 math 模块，持续维护 |
 
 ## 定制清单
 
