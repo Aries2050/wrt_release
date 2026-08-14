@@ -1,6 +1,6 @@
 # 本地定制更改概览
 
-> **最后更新**: 2026-08-13
+> **最后更新**: 2026-08-14
 
 本仓库源自 [ZqinKing/wrt_release](https://github.com/ZqinKing/wrt_release)，在此基础上有以下本地定制。
 
@@ -54,12 +54,13 @@
 | 2026-08-06 | `96ffc2e` | 规范文档补充「回填哈希作为任务附加、不单独提交」约定（`docs/MAINTENANCE.md` / `.github/copilot-instructions.md` / `AGENTS.md`） |
 | 2026-08-06 | `96ffc2e` | 修复 ovpn-dco 编译失败（Linux 6.18.40+ 移除 `proto::recvmsg` 的 addr_len）：新增 `sync_ovpn_dco_patches()` 同步上游 `54c4f0f` 的 0001/0002 补丁到 feeds 版本，规避 `feeds install -a -f` 覆盖丢失 core 补丁 |
 | 2026-08-06 | `975c183` | 修复 luci-app-qbittorrent rpcd 插件无执行位：LuCI qBittorrent 页报 `luci.qbittorrent/get-version` `Object not found`；git 索引置为 `100755`（项目仅 GitHub Actions/Linux 编译，检出按索引应用执行位）；`install_local_packages()` 复制后强制 `chmod +x` `root/usr/libexec/rpcd/*` 兜底 |
-| 2026-08-13 | `当前提交` | luci-app-adguardhome 界面改用自有仓库 Aries2050/luci-app-adguardhome（单包仓库整仓同步，JS 前端版，覆盖 kenzok8 源）；custom_feed.sh 支持 GITHUB_TOKEN 认证 + rpcd 插件执行位（源头 100755 + 构建侧幂等兑底）；16 机型清理悬空 `CONFIG_PACKAGE_luci-app-adguardhome_INCLUDE_binary`；详见 [adguardhome-source-switch.md](./adguardhome-source-switch.md) |
-| 2026-08-13 | `当前提交` | 构建产物输出独立 IPK/APK 包：`build.sh` 将全部 IPK/APK + 软件源索引（Packages/Packages.gz/APKINDEX）复制到 `firmware/packages/`（可直接作本地 opkg 源）；`build_wrt.yml` 新增 `_packages` artifact，固件文件列表改为仅列顶层文件 |
-| 2026-08-13 | `当前提交` | 全面转向 APK 包管理：`CONFIG_USE_APK=y`（compile_base/n1）；设备 INI 加 `PACKAGE_MANAGER=apk`；distfeeds 生成 apk 格式 `/etc/apk/repositories.d/distfeeds.list`（ImmortalWRT 25.12-SNAPSHOT `packages.adb` 源，保留签名校验）；opkg 补丁注入与 CI 检查按模式跳过；固件输出补 `packages.adb`/`packages.adb.sig` 索引 |
-| 2026-08-14 | `当前提交` | APK 适配收尾：`prebuilt_packages/install.sh` 的 qbt 安装/卸载加 APK 分支（`command -v apk` 检测，提示固件已内置）；Pre-build/Verify 预编译包检查兼容 ipk/apk；`check_prebuilt.py` 文案适配 |
-| 2026-08-14 | `当前提交` | 全面检查修复：`PACKAGE_MANAGER` 默认值 opkg→**apk**（17 个未设置 INI 的设备在全局 `USE_APK=y` 下软件源错配）；`service_fixes.sh` 兜底默认值统一为 apk；APK distfeeds 首次启动 mv 前加 `mkdir -p /etc/apk/repositories.d` 兜底 |
-| 2026-08-14 | `当前提交` | LuCI 包管理界面：启用 `luci-app-package-manager`（APK 原生界面，`PKG_PROVIDES:=luci-app-opkg`，自动检测 apk/opkg），移除 legacy `luci-lib-ipkg` |
+| 2026-08-13 | `929e0bf` | luci-app-adguardhome 界面改用自有仓库 Aries2050/luci-app-adguardhome（单包仓库整仓同步，JS 前端版，覆盖 kenzok8 源）；custom_feed.sh 支持 GITHUB_TOKEN 认证 + rpcd 插件执行位（源头 100755 + 构建侧幂等兑底）；16 机型清理悬空 `CONFIG_PACKAGE_luci-app-adguardhome_INCLUDE_binary`；详见 [adguardhome-source-switch.md](./adguardhome-source-switch.md) |
+| 2026-08-13 | `929e0bf` | 构建产物输出独立 IPK/APK 包：`build.sh` 将全部 IPK/APK + 软件源索引（Packages/Packages.gz/APKINDEX）复制到 `firmware/packages/`（可直接作本地 opkg 源）；`build_wrt.yml` 新增 `_packages` artifact，固件文件列表改为仅列顶层文件 |
+| 2026-08-13 | `a977ef9` | 全面转向 APK 包管理：`CONFIG_USE_APK=y`（compile_base/n1）；设备 INI 加 `PACKAGE_MANAGER=apk`；distfeeds 生成 apk 格式 `/etc/apk/repositories.d/distfeeds.list`（ImmortalWRT 25.12-SNAPSHOT `packages.adb` 源，保留签名校验）；opkg 补丁注入与 CI 检查按模式跳过；固件输出补 `packages.adb`/`packages.adb.sig` 索引 |
+| 2026-08-14 | `5346670` | APK 适配收尾：`prebuilt_packages/install.sh` 的 qbt 安装/卸载加 APK 分支（`command -v apk` 检测，提示固件已内置）；Pre-build/Verify 预编译包检查兼容 ipk/apk；`check_prebuilt.py` 文案适配 |
+| 2026-08-14 | `5346670` | 全面检查修复：`PACKAGE_MANAGER` 默认值 opkg→**apk**（17 个未设置 INI 的设备在全局 `USE_APK=y` 下软件源错配）；`service_fixes.sh` 兜底默认值统一为 apk；APK distfeeds 首次启动 mv 前加 `mkdir -p /etc/apk/repositories.d` 兜底 |
+| 2026-08-14 | `5346670` | LuCI 包管理界面：启用 `luci-app-package-manager`（APK 原生界面，`PKG_PROVIDES:=luci-app-opkg`，自动检测 apk/opkg），移除 legacy `luci-lib-ipkg` |
+| 2026-08-14 | `当前提交` | dockerman 改用 immortalwrt 官方 ucode 版（停用 lisaac 覆盖）：lisaac 版依赖 `luci-lib-docker`（`PKG_VERSION:=v0.3.4` 带 `v` 前缀，APK 打包版本号无效导致 `luci-lib-docker-v0.3.4-r1.apk` 构建失败）；官方版不依赖该库且自带 zh_Hans 中文；`update.sh` 不再调用 `update_dockerman()`，`docker.sh` 的 dockerman nftables 补丁对官方版自动 no-op（官方版无 `init.d/dockerman`） |
 
 ## 定制清单
 
@@ -102,7 +103,7 @@
 | 包 | 提交 | 说明 |
 |----|------|------|
 | `kmod-mt7921u` / `kmod-mt7921-firmware` / `kmod-mt7921-common` | `d100602` | MT7921U USB 无线网卡驱动和固件 |
-| `luci-app-dockerman` + 中文本地化 | `d100602` | Docker 管理面板 |
+| `luci-app-dockerman` + 中文本地化 | `d100602`；`当前提交` 起改官方 ucode 版 | Docker 管理面板；原 lisaac 版依赖 `luci-lib-docker`（v0.3.4 带 v 前缀，APK 打包版本号无效），2026-08-14 起停用 lisaac 覆盖、改用 immortalwrt 官方版（不依赖该库、自带 zh_Hans，见修订时间线） |
 | `luci-app-easymesh` | `d100602` | EasyMesh 组网 |
 | `luci-app-openlist` | `d100602` | OpenList 应用 |
 | `luci-app-openclash` | `d100602` | OpenClash 代理客户端 |
@@ -122,7 +123,7 @@
 | `kmod-rtw88-8812au` / `rtl8812a-firmware` | `feat/add-usb-wifi-drivers` | RTL8812AU USB 无线网卡主线驱动（`rtw88` 8812A spec，无线主线 backport） |
 | `kmod-rtw88-8822bu` / `rtl8822be-firmware` | `4ff9c9d` | RTL8812BU/RTL8822BU USB 无线网卡主线驱动（`rtw88` 8822B spec，认领 `0bda:b812`）；与 8812au 并存 |
 | `adguardhome` + `luci-app-adguardhome` | `b7adf44` | AdGuardHome 切换 kenzok8/small-package 源，16 机型二进制核心编入固件；详见 [adguardhome-source-switch.md](./adguardhome-source-switch.md) |
-| `luci-app-adguardhome`（界面） | `当前提交` | LuCI 界面改用自有仓库 Aries2050/luci-app-adguardhome（单包仓库整仓同步，JS 前端，接管小写 `init.d/adguardhome`，含 rpcd 插件 `luci.adguardhome` 与 `adguardhome` 脚本）；二进制核心 `adguardhome` 仍为 kenzok8/small-package；16 机型清理悬空 `luci-app-adguardhome_INCLUDE_binary`；详见 [adguardhome-source-switch.md](./adguardhome-source-switch.md) |
+| `luci-app-adguardhome`（界面） | `929e0bf` | LuCI 界面改用自有仓库 Aries2050/luci-app-adguardhome（单包仓库整仓同步，JS 前端，接管小写 `init.d/adguardhome`，含 rpcd 插件 `luci.adguardhome` 与 `adguardhome` 脚本）；二进制核心 `adguardhome` 仍为 kenzok8/small-package；16 机型清理悬空 `luci-app-adguardhome_INCLUDE_binary`；详见 [adguardhome-source-switch.md](./adguardhome-source-switch.md) |
 
 ### 6. 定制分支信息行
 
@@ -154,7 +155,7 @@
 | 默认编译配置改为 `link_nn6000v2_immwrt` | `d100602` | `.github/workflows/build_wrt.yml` |
 | 添加 Go Setup 步骤 | `d100602` | `.github/workflows/build_wrt.yml` |
 | NN6000v2 加入 `zram-swap` / `luci-app-emmc-health` | `cb00024` | `wrt_core/deconfig/link_nn6000v2_immwrt.config` |
-| 输出独立 IPK/APK 包 | `当前提交` | `build.sh` + `.github/workflows/build_wrt.yml` |
+| 输出独立 IPK/APK 包 | `929e0bf` | `build.sh` + `.github/workflows/build_wrt.yml` |
 
 ### 9. 构建标识
 

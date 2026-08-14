@@ -127,7 +127,10 @@ stage_pre_install_source_fixes() {
     update_smartdns
     update_mwan3_fw4
     update_diskman
-    update_dockerman
+    # ⭐ 本地定制：2026-08-14 起停用 lisaac dockerman 覆盖，改用 immortalwrt 官方 ucode 版。
+    # 官方版不依赖 luci-lib-docker（lisaac 版 luci-lib-docker v0.3.4 带 v 前缀，APK 打包版本号无效导致构建失败）；
+    # docker.sh 的 dockerman nftables 补丁对官方版自动 no-op（官方版无 init.d/dockerman）。
+    # update_dockerman
     set_nginx_default_config
     update_uwsgi_limit_as
     update_argon

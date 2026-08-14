@@ -180,6 +180,12 @@ _sync_luci_lib_docker() {
 
 
 update_dockerman() {
+    # ⭐ 本地定制：已停用（2026-08-14）——改用 immortalwrt 官方 ucode 版 dockerman。
+    # lisaac 版依赖 luci-lib-docker（PKG_VERSION:=v0.3.4 带 v 前缀），APK 打包版本号无效导致构建失败；
+    # 官方版不依赖 luci-lib-docker，且 docker.sh 的 dockerman nftables 补丁对官方版自动 no-op。
+    # 保留函数体便于回退；update.sh 已不再调用本函数。
+    return 0
+
     local path="$BUILD_DIR/feeds/luci/applications/luci-app-dockerman"
     local repo_url="https://github.com/lisaac/luci-app-dockerman.git"
 
