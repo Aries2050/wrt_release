@@ -1,6 +1,6 @@
 # 本地定制更改概览
 
-> **最后更新**: 2026-08-14
+> **最后更新**: 2026-08-15
 
 本仓库源自 [ZqinKing/wrt_release](https://github.com/ZqinKing/wrt_release)，在此基础上有以下本地定制。
 
@@ -61,6 +61,7 @@
 | 2026-08-14 | `5346670` | 全面检查修复：`PACKAGE_MANAGER` 默认值 opkg→**apk**（17 个未设置 INI 的设备在全局 `USE_APK=y` 下软件源错配）；`service_fixes.sh` 兜底默认值统一为 apk；APK distfeeds 首次启动 mv 前加 `mkdir -p /etc/apk/repositories.d` 兜底 |
 | 2026-08-14 | `5346670` | LuCI 包管理界面：启用 `luci-app-package-manager`（APK 原生界面，`PKG_PROVIDES:=luci-app-opkg`，自动检测 apk/opkg），移除 legacy `luci-lib-ipkg` |
 | 2026-08-14 | `当前提交` | dockerman 改用 immortalwrt 官方 ucode 版（停用 lisaac 覆盖）：lisaac 版依赖 `luci-lib-docker`（`PKG_VERSION:=v0.3.4` 带 `v` 前缀，APK 打包版本号无效导致 `luci-lib-docker-v0.3.4-r1.apk` 构建失败）；官方版不依赖该库且自带 zh_Hans 中文；`update.sh` 不再调用 `update_dockerman()`，`docker.sh` 的 dockerman nftables 补丁对官方版自动 no-op（官方版无 `init.d/dockerman`） |
+| 2026-08-15 | `当前提交` | argon 主题换回官方 jerrykuku 源（`wrt_core/modules/package_source_updates.sh` `update_argon()`）：ZqinKing fork（2.4.3，2026-03 停更）ucode 模板用 `import { srand } from 'math'`（登录页随机背景）但 Makefile 漏声明 `+ucode-mod-math` → 固件缺 `math.so` → LuCI `header.ut` 编译失败（500）；官方版（2.4.6+）模板不用 math 模块，持续维护 |
 
 ## 定制清单
 
