@@ -1,6 +1,6 @@
 # 本地定制更改概览
 
-> **最后更新**: 2026-08-13
+> **最后更新**: 2026-08-15
 
 本仓库源自 [ZqinKing/wrt_release](https://github.com/ZqinKing/wrt_release)，在此基础上有以下本地定制。
 
@@ -51,8 +51,9 @@
 | 2026-08-06 | `96ffc2e` | 规范文档补充「回填哈希作为任务附加、不单独提交」约定（`docs/MAINTENANCE.md` / `.github/copilot-instructions.md` / `AGENTS.md`） |
 | 2026-08-06 | `96ffc2e` | 修复 ovpn-dco 编译失败（Linux 6.18.40+ 移除 `proto::recvmsg` 的 addr_len）：新增 `sync_ovpn_dco_patches()` 同步上游 `54c4f0f` 的 0001/0002 补丁到 feeds 版本，规避 `feeds install -a -f` 覆盖丢失 core 补丁 |
 | 2026-08-06 | `975c183` | 修复 luci-app-qbittorrent rpcd 插件无执行位：LuCI qBittorrent 页报 `luci.qbittorrent/get-version` `Object not found`；git 索引置为 `100755`（项目仅 GitHub Actions/Linux 编译，检出按索引应用执行位）；`install_local_packages()` 复制后强制 `chmod +x` `root/usr/libexec/rpcd/*` 兜底 |
-| 2026-08-13 | `当前提交` | luci-app-adguardhome 界面改用自有仓库 Aries2050/luci-app-adguardhome（单包仓库整仓同步，JS 前端版，覆盖 kenzok8 源）；custom_feed.sh 支持 GITHUB_TOKEN 认证 + rpcd 插件执行位（源头 100755 + 构建侧幂等兑底）；16 机型清理悬空 `CONFIG_PACKAGE_luci-app-adguardhome_INCLUDE_binary`；详见 [adguardhome-source-switch.md](./adguardhome-source-switch.md) |
-| 2026-08-13 | `当前提交` | 构建产物输出独立 IPK/APK 包：`build.sh` 将全部 IPK/APK + 软件源索引（Packages/Packages.gz/APKINDEX）复制到 `firmware/packages/`（可直接作本地 opkg 源）；`build_wrt.yml` 新增 `_packages` artifact，固件文件列表改为仅列顶层文件 |
+| 2026-08-13 | `a05b60f` | luci-app-adguardhome 界面改用自有仓库 Aries2050/luci-app-adguardhome（单包仓库整仓同步，JS 前端版，覆盖 kenzok8 源）；custom_feed.sh 支持 GITHUB_TOKEN 认证 + rpcd 插件执行位（源头 100755 + 构建侧幂等兑底）；16 机型清理悬空 `CONFIG_PACKAGE_luci-app-adguardhome_INCLUDE_binary`；详见 [adguardhome-source-switch.md](./adguardhome-source-switch.md) |
+| 2026-08-13 | `a05b60f` | 构建产物输出独立 IPK/APK 包：`build.sh` 将全部 IPK/APK + 软件源索引（Packages/Packages.gz/APKINDEX）复制到 `firmware/packages/`（可直接作本地 opkg 源）；`build_wrt.yml` 新增 `_packages` artifact，固件文件列表改为仅列顶层文件 |
+| 2026-08-15 | `当前提交` | argon 主题换回官方 jerrykuku 源（`wrt_core/modules/package_source_updates.sh` `update_argon()`）：ZqinKing fork（2.4.3，2026-03 停更）ucode 模板用 `import { srand } from 'math'`（登录页随机背景）但 Makefile 漏声明 `+ucode-mod-math` → 固件缺 `math.so` → LuCI `header.ut` 编译失败（500）；官方版（2.4.6+）模板不用 math 模块，持续维护 |
 
 ## 定制清单
 
