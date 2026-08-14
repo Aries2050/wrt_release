@@ -93,12 +93,12 @@ jobs:
           echo "  Pre-build 检查"
           echo "  模型: ${{ inputs.model }}"
           echo "============================================"
-          echo "■ [预编译IPK]"
-          PREBUILT_COUNT=$(ls -1 "./wrt_core/prebuilt_packages/pkgs/"*.ipk 2>/dev/null | wc -l)
+          echo "■ [预编译包]"
+          PREBUILT_COUNT=$(ls -1 ./wrt_core/prebuilt_packages/pkgs/*.ipk ./wrt_core/prebuilt_packages/pkgs/*.apk 2>/dev/null | wc -l)
           if [ "$PREBUILT_COUNT" -gt 0 ]; then
-            echo "  ✅ $PREBUILT_COUNT 个预编译 IPK 可用"
+            echo "  ✅ $PREBUILT_COUNT 个预编译 IPK/APK 可用"
           else
-            echo "  ❌ 无预编译 IPK（若模型依赖预编译包，构建会失败）"
+            echo "  ❌ 无预编译包（若模型依赖预编译包，构建会失败）"
             ERRORS=$((ERRORS + 1))
           fi
           if [ $ERRORS -gt 0 ]; then

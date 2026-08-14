@@ -25,6 +25,13 @@ list_packages() {
 # ===================== qBittorrent =====================
 
 install_qbittorrent() {
+    # APK 模式：固件已由构建期 install_prebuilt_ipks() 内置 qbittorrent 后端，
+    # 不再通过 opkg 安装；如需手动安装请提供含 qbittorrent 的 APK 软件源。
+    if command -v apk >/dev/null 2>&1; then
+        echo "APK 模式：qBittorrent 后端已随固件内置（构建期注入），无需安装。"
+        echo "如需手动安装，请使用: apk add qbittorrent（需配置含该包的 APK 源）"
+        return 0
+    fi
     local add_arch=0
 
     if [ "$(opkg print-architecture | sed -n 's/arch \(\S\+\) 10/\1/pg')" != "aarch64_cortex-a53" ]; then
@@ -56,6 +63,11 @@ EOF1
 }
 
 remove_qbittorrent() {
+    # APK 模式：使用 apk 移除（若曾从 APK 源安装）
+    if command -v apk >/dev/null 2>&1; then
+        apk del "$@"
+        return $?
+    fi
     opkg --force-removal-of-dependent-packages remove "$@"
 }
 

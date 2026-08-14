@@ -423,7 +423,9 @@ COMMIT_HASH=$(read_ini_by_key "COMMIT_HASH")
 COMMIT_HASH=${COMMIT_HASH:-none}
 # ⭐ 本地定制：包管理器（opkg/apk），传给 update.sh 决定 distfeeds 格式（APK 试验分支）
 PACKAGE_MANAGER=$(read_ini_by_key "PACKAGE_MANAGER")
-PACKAGE_MANAGER=${PACKAGE_MANAGER:-opkg}
+# ⭐ 本地定制：全面转向 APK — 默认 apk（与 CONFIG_USE_APK=y 一致）；
+# 如需 opkg 请在设备 INI 显式设置 PACKAGE_MANAGER=opkg 并在 deconfig 关闭 USE_APK。
+PACKAGE_MANAGER=${PACKAGE_MANAGER:-apk}
 export PACKAGE_MANAGER
 
 resolve_config_fragments

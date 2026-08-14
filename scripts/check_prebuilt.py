@@ -12,7 +12,7 @@ print("prebuilt_packages 完整性检查")
 print("=" * 72)
 
 # 1) pkgs 目录 IPK 文件 vs Packages 索引
-print("\n[1] qBittorrent opkg 仓库 (pkgs/)")
+print("\n[1] qBittorrent 预编译包 (pkgs/)")
 ipk_files = {}
 if os.path.isdir(pkgs):
     for f in os.listdir(pkgs):
@@ -56,7 +56,7 @@ for fn in sorted(index_files):
             print(f"        {ok}")
 
 # 2) key 签名
-print("\n[2] opkg 签名 key")
+print("\n[2] 包签名 key")
 key_file = os.path.join(pre, "key", "527ca1333af7875e")
 sig_file = os.path.join(pkgs, "Packages.sig")
 print(f"  签名公钥 key/527ca1333af7875e : {'存在' if os.path.exists(key_file) else '!! 缺失'}")

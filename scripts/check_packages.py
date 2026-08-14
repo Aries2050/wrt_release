@@ -82,7 +82,7 @@ stdlib = {
     "usbmuxd", "mii-tool", "xl2tpd", "xz-utils", "zram-swap",
     "luci-app-autoreboot", "luci-app-diskman", "luci-app-samba4", "luci-app-sqm",
     "luci-app-vlmcsd", "luci-app-dockerman", "luci-app-quickfile",
-    "libopenssl-legacy", "luci-lib-ipkg", "coremark", "jq", "iptables-nft", "ip6tables-nft",
+    "libopenssl-legacy", "luci-app-package-manager", "coremark", "jq", "iptables-nft", "ip6tables-nft",
     "proto-bonding", "luci-proto-wireguard", "luci-proto-relay", "automount",
     "luci-app-ttyd", "luci-app-upnp", "luci-app-wol", "luci-app-pbr", "luci-app-easymesh",
     "luci-app-openlist", "luci-app-zerotier", "luci-app-smartdns", "luci-app-oaf",

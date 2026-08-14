@@ -278,12 +278,12 @@ jobs:
 
           # ── 6. 预编译 IPK ──
           echo ""
-          echo "■ [预编译IPK]"
-          PREBUILT_COUNT=$(ls -1 "./wrt_core/prebuilt_packages/pkgs/"*.ipk 2>/dev/null | wc -l)
+          echo "■ [预编译包]"
+          PREBUILT_COUNT=$(ls -1 ./wrt_core/prebuilt_packages/pkgs/*.ipk ./wrt_core/prebuilt_packages/pkgs/*.apk 2>/dev/null | wc -l)
           if [ "$PREBUILT_COUNT" -gt 0 ]; then
-            echo "  ✅ $PREBUILT_COUNT 个预编译 IPK 可用"
+            echo "  ✅ $PREBUILT_COUNT 个预编译 IPK/APK 可用"
           else
-            echo "  ⚠️  无预编译 IPK"
+            echo "  ⚠️  无预编译包"
           fi
 
           # ── 7. 固件产物完整性 ──

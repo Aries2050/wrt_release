@@ -54,7 +54,7 @@ install_opkg_distfeeds() {
         # ⭐ 本地定制：PACKAGE_MANAGER=apk 时生成 apk 格式 repositories（全面转向 APK）。
         # apk 模式：/etc/apk/repositories.d/distfeeds.list，URL 指向 packages.adb；
         # ImmortalWRT 25.12-SNAPSHOT 官方源已全面切换为 APK（含 packages.adb + packages.adb.sig）。
-        if [[ "${PACKAGE_MANAGER:-opkg}" == "apk" ]]; then
+        if [[ "${PACKAGE_MANAGER:-apk}" == "apk" ]]; then
             cat <<'EOF' >"$distfeeds_conf"
 https://downloads.immortalwrt.org/releases/25.12-SNAPSHOT/packages/aarch64_cortex-a53/base/packages.adb
 https://downloads.immortalwrt.org/releases/25.12-SNAPSHOT/packages/aarch64_cortex-a53/luci/packages.adb
@@ -76,9 +76,10 @@ EOF
 \\t\$(INSTALL_DIR) \$(1)/etc\\n\
 \t\$(INSTALL_DATA) ./files/99-distfeeds.conf \$(1)/etc/99-distfeeds.conf\n" $emortal_def_dir/Makefile
 
-        if [[ "${PACKAGE_MANAGER:-opkg}" == "apk" ]]; then
+        if [[ "${PACKAGE_MANAGER:-apk}" == "apk" ]]; then
             # apk 模式：repositories.d 保留签名校验（官方源带 packages.adb.sig，keyring 提供公钥）
             sed -i "/exit 0/i\\
+mkdir -p '/etc/apk/repositories.d'\\n\
 [ -f '/etc/99-distfeeds.conf' ] && mv '/etc/99-distfeeds.conf' '/etc/apk/repositories.d/distfeeds.list'\\n" $emortal_def_dir/files/99-default-settings
         else
             sed -i "/exit 0/i\\
@@ -154,7 +155,7 @@ fix_openssl_ktls() {
 
 fix_opkg_check() {
     # APK 模式下 opkg 不参与构建，跳过补丁注入（全面转向 APK）
-    [[ "${PACKAGE_MANAGER:-opkg}" == "apk" ]] && return 0
+    [[ "${PACKAGE_MANAGER:-apk}" == "apk" ]] && return 0
     local patch_file="$BASE_PATH/patches/001-fix-provides-version-parsing.patch"
     local opkg_dir="$BUILD_DIR/package/system/opkg"
     if [ -f "$patch_file" ]; then

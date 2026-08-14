@@ -42,9 +42,10 @@ GLIBC_COMPAT=$(read_ini_by_key "GLIBC_COMPAT")
 GLIBC_COMPAT=${GLIBC_COMPAT:-true}
 
 # ⭐ 本地定制：PACKAGE_MANAGER — 控制包管理器（opkg/apk，全面转向 APK）。
+# 默认 apk（与 CONFIG_USE_APK=y 一致）；opkg 需设备 INI 显式设置 PACKAGE_MANAGER=opkg。
 # build.sh 亦读取并 export，此处兜底读取以保证直接运行 update.sh 时行为一致。
 PACKAGE_MANAGER=$(read_ini_by_key "PACKAGE_MANAGER")
-PACKAGE_MANAGER=${PACKAGE_MANAGER:-opkg}
+PACKAGE_MANAGER=${PACKAGE_MANAGER:-apk}
 
 # 按静态职责加载模块，执行顺序仍由本脚本统一控制。
 source "$SCRIPT_DIR/modules/network.sh"

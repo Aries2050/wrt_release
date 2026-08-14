@@ -57,6 +57,9 @@
 | 2026-08-13 | `当前提交` | luci-app-adguardhome 界面改用自有仓库 Aries2050/luci-app-adguardhome（单包仓库整仓同步，JS 前端版，覆盖 kenzok8 源）；custom_feed.sh 支持 GITHUB_TOKEN 认证 + rpcd 插件执行位（源头 100755 + 构建侧幂等兑底）；16 机型清理悬空 `CONFIG_PACKAGE_luci-app-adguardhome_INCLUDE_binary`；详见 [adguardhome-source-switch.md](./adguardhome-source-switch.md) |
 | 2026-08-13 | `当前提交` | 构建产物输出独立 IPK/APK 包：`build.sh` 将全部 IPK/APK + 软件源索引（Packages/Packages.gz/APKINDEX）复制到 `firmware/packages/`（可直接作本地 opkg 源）；`build_wrt.yml` 新增 `_packages` artifact，固件文件列表改为仅列顶层文件 |
 | 2026-08-13 | `当前提交` | 全面转向 APK 包管理：`CONFIG_USE_APK=y`（compile_base/n1）；设备 INI 加 `PACKAGE_MANAGER=apk`；distfeeds 生成 apk 格式 `/etc/apk/repositories.d/distfeeds.list`（ImmortalWRT 25.12-SNAPSHOT `packages.adb` 源，保留签名校验）；opkg 补丁注入与 CI 检查按模式跳过；固件输出补 `packages.adb`/`packages.adb.sig` 索引 |
+| 2026-08-14 | `当前提交` | APK 适配收尾：`prebuilt_packages/install.sh` 的 qbt 安装/卸载加 APK 分支（`command -v apk` 检测，提示固件已内置）；Pre-build/Verify 预编译包检查兼容 ipk/apk；`check_prebuilt.py` 文案适配 |
+| 2026-08-14 | `当前提交` | 全面检查修复：`PACKAGE_MANAGER` 默认值 opkg→**apk**（17 个未设置 INI 的设备在全局 `USE_APK=y` 下软件源错配）；`service_fixes.sh` 兜底默认值统一为 apk；APK distfeeds 首次启动 mv 前加 `mkdir -p /etc/apk/repositories.d` 兜底 |
+| 2026-08-14 | `当前提交` | LuCI 包管理界面：启用 `luci-app-package-manager`（APK 原生界面，`PKG_PROVIDES:=luci-app-opkg`，自动检测 apk/opkg），移除 legacy `luci-lib-ipkg` |
 
 ## 定制清单
 
