@@ -371,8 +371,15 @@ jobs:
               echo "  ⚠️  $label — $patch_name 未在 $search_dir 中找到"
             fi
           }
-          check_patch "001-fix-provides-version-parsing.patch" \
-            "$BUILD_DIR/feeds/packages/system/opkg/patches" "opkg Provides 版本解析修复"
+          # ⭐ 本地定制：APK 模式下 opkg 不参与构建，跳过 opkg 补丁检查
+          PKG_MGR=$(grep -E '^PACKAGE_MANAGER=' "wrt_core/compilecfg/${{ inputs.model }}.ini" 2>/dev/null | head -1 | cut -d= -f2)
+          PKG_MGR=${PKG_MGR:-opkg}
+          if [ "$PKG_MGR" = "apk" ]; then
+            echo "  ⏭️  APK 模式 — 跳过 opkg 补丁检查"
+          else
+            check_patch "001-fix-provides-version-parsing.patch" \
+              "$BUILD_DIR/feeds/packages/system/opkg/patches" "opkg Provides 版本解析修复"
+          fi
           check_patch "100-smartdns-optimize.patch" \
             "$BUILD_DIR/feeds/packages/net/smartdns/patches" "smartdns 优化"
           check_patch "999-chanage-default-leaseduration.patch" \

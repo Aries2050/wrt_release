@@ -421,6 +421,10 @@ REPO_BRANCH=${REPO_BRANCH:-main}
 BUILD_DIR=$(read_ini_by_key "BUILD_DIR")
 COMMIT_HASH=$(read_ini_by_key "COMMIT_HASH")
 COMMIT_HASH=${COMMIT_HASH:-none}
+# ⭐ 本地定制：包管理器（opkg/apk），传给 update.sh 决定 distfeeds 格式（APK 试验分支）
+PACKAGE_MANAGER=$(read_ini_by_key "PACKAGE_MANAGER")
+PACKAGE_MANAGER=${PACKAGE_MANAGER:-opkg}
+export PACKAGE_MANAGER
 
 resolve_config_fragments
 
@@ -468,13 +472,13 @@ mkdir -p "$FIRMWARE_DIR"
 find "$TARGET_DIR" -type f \( -name "*.bin" -o -name "*.manifest" -o -name "*efi.img.gz" -o -name "*.itb" -o -name "*.fip" -o -name "*.ubi" -o -name "*rootfs.tar.gz" \) -exec cp -f {} "$FIRMWARE_DIR/" \;
 \rm -f "$BASE_PATH/../firmware/Packages.manifest" 2>/dev/null
 
-# ⭐ 本地定制：包在编入固件的同时，输出独立 IPK/APK 包（可在路由器上 opkg 单独安装/升级）。
+# ⭐ 本地定制：包在编入固件的同时，输出独立 IPK/APK 包（可在路由器上 opkg/apk 单独安装/升级）。
 # 复制全部 IPK/APK 与软件源索引到 firmware/packages/，该目录可直接作为本地软件源。
 PKG_OUTPUT_DIR="$FIRMWARE_DIR/packages"
 if [ -d "$TARGET_DIR" ]; then
     mkdir -p "$PKG_OUTPUT_DIR"
     find "$TARGET_DIR" -type f \( -name "*.ipk" -o -name "*.apk" \) -exec cp -f {} "$PKG_OUTPUT_DIR/" \;
-    for pkg_idx in "$TARGET_DIR"/packages/Packages "$TARGET_DIR"/packages/Packages.gz "$TARGET_DIR"/packages/APKINDEX.tar.gz; do
+    for pkg_idx in "$TARGET_DIR"/packages/Packages "$TARGET_DIR"/packages/Packages.gz "$TARGET_DIR"/packages/packages.adb "$TARGET_DIR"/packages/packages.adb.sig "$TARGET_DIR"/packages/APKINDEX.tar.gz; do
         [ -f "$pkg_idx" ] && cp -f "$pkg_idx" "$PKG_OUTPUT_DIR/"
     done
     echo "独立 IPK/APK 包输出到 $PKG_OUTPUT_DIR（$(find "$PKG_OUTPUT_DIR" \( -name "*.ipk" -o -name "*.apk" \) | wc -l) 个）"

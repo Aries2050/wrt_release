@@ -1,5 +1,7 @@
 #!/bin/sh
 # ⭐ 本地定制：管理预编译 IPK 包和 HDSentinel 部署
+# 注意：全面转向 APK 后固件不再内置 opkg，本脚本的 opkg 安装仅适用于 opkg 固件；
+# qbittorrent 后端已由构建期 install_prebuilt_ipks() 解压注入固件，一般无需本脚本。
 
 set -e
 

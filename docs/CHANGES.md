@@ -56,6 +56,7 @@
 | 2026-08-06 | `975c183` | 修复 luci-app-qbittorrent rpcd 插件无执行位：LuCI qBittorrent 页报 `luci.qbittorrent/get-version` `Object not found`；git 索引置为 `100755`（项目仅 GitHub Actions/Linux 编译，检出按索引应用执行位）；`install_local_packages()` 复制后强制 `chmod +x` `root/usr/libexec/rpcd/*` 兜底 |
 | 2026-08-13 | `当前提交` | luci-app-adguardhome 界面改用自有仓库 Aries2050/luci-app-adguardhome（单包仓库整仓同步，JS 前端版，覆盖 kenzok8 源）；custom_feed.sh 支持 GITHUB_TOKEN 认证 + rpcd 插件执行位（源头 100755 + 构建侧幂等兑底）；16 机型清理悬空 `CONFIG_PACKAGE_luci-app-adguardhome_INCLUDE_binary`；详见 [adguardhome-source-switch.md](./adguardhome-source-switch.md) |
 | 2026-08-13 | `当前提交` | 构建产物输出独立 IPK/APK 包：`build.sh` 将全部 IPK/APK + 软件源索引（Packages/Packages.gz/APKINDEX）复制到 `firmware/packages/`（可直接作本地 opkg 源）；`build_wrt.yml` 新增 `_packages` artifact，固件文件列表改为仅列顶层文件 |
+| 2026-08-13 | `当前提交` | 全面转向 APK 包管理：`CONFIG_USE_APK=y`（compile_base/n1）；设备 INI 加 `PACKAGE_MANAGER=apk`；distfeeds 生成 apk 格式 `/etc/apk/repositories.d/distfeeds.list`（ImmortalWRT 25.12-SNAPSHOT `packages.adb` 源，保留签名校验）；opkg 补丁注入与 CI 检查按模式跳过；固件输出补 `packages.adb`/`packages.adb.sig` 索引 |
 
 ## 定制清单
 
