@@ -65,7 +65,8 @@
 | 2026-08-15 | `22d4f12` | 修复 luci-app-tailscale 与 tailscale 二进制包文件冲突（APK 严格 ownership 检查）：`custom_feed.sh` 同步 kenzok8 版后移除其自带 `/etc/config/tailscale` 与 `/etc/init.d/tailscale`（由二进制包提供），并在 uci-defaults/40_luci-tailscale 首次开机幂等补充二进制包 config 缺失的界面/hotplug 依赖字段（enabled/config_path/accept_dns） |
 | 2026-08-15 | `ae85adc` | OpenVPN 服务器界面改用 kiddin9/openwrt-openvpn（`wrt_core/packages/` 本地源码接管 `luci-app-openvpn-server` v1.0-r3 + `openvpn-easy-rsa-whisky`），适配 ImmortalWRT 25.12 openvpn 无官方 init.d 的 netifd 机制：新增 `/etc/init.d/openvpn` 桥接脚本（restart 时把界面配置 `/etc/config/openvpn` 全量同步到 `network.myvpn` 并按 `openvpn.myvpn.enabled` ifup/ifdown）、`base.lua` proto 值改服务端形式（tcp-server/tcp6-server）并加保存即应用（on_after_commit）、`genovpn.sh` 客户端 proto 转换；`remove_unwanted_packages` 移除 immortalwrt/luci 同名 `luci-app-openvpn-server` 与官方 `openvpn-easy-rsa`（避免 APK 文件冲突）；compile_base.config 启用 `openvpn-easy-rsa-whisky`、移除悬空 `luci-i18n-openvpn-server-zh-cn` |
 | 2026-08-15 | `eff1cc4` | 修复 luci-app-cupsd 的 CUPS 界面 500（`/admin/services/cupsd` Runtime error）：APK 迁移后移除 `luci-lib-ipkg`，`page1.lua` 的 `require("luci.model.ipkg")` 成死引用（页面未实际使用该模块）→ module not found；`cups.sh` 新增 `fix_cups_luci_ipkg_require()`（`stage_post_install_package_fixes` 调用）删除该 require 行，`update.sh` 接入 |
-| 2026-08-15 | `当前提交` | 修复 luci-app-easymesh 界面缺失：`compile_base.config` 长期启用该包但上游 luci（immortalwrt/openwrt）均无此包、custom_feed 未同步 → 配置悬空、EasyMesh 界面从未编入固件；`custom_feed.sh` 稀疏同步 kenzok8/small-package 的 `luci-app-easymesh`（ntlf9t 版 v2.0，依赖 kmod-batman-adv/batctl-default/dawn 自动拉入，wpad-mesh-openssl 已满足）并加入 `required_feed_dirs` 校验；`compile_base.config` 补 `luci-i18n-easymesh-zh-cn` |
+| 2026-08-15 | `a02cc31` | 修复 luci-app-easymesh 界面缺失：`compile_base.config` 长期启用该包但上游 luci（immortalwrt/openwrt）均无此包、custom_feed 未同步 → 配置悬空、EasyMesh 界面从未编入固件；`custom_feed.sh` 稀疏同步 kenzok8/small-package 的 `luci-app-easymesh`（ntlf9t 版 v2.0，依赖 kmod-batman-adv/batctl-default/dawn 自动拉入，wpad-mesh-openssl 已满足）并加入 `required_feed_dirs` 校验；`compile_base.config` 补 `luci-i18n-easymesh-zh-cn` |
+| 2026-08-15 | `当前提交` | 全量对比 deconfig 期望包 vs 固件实际安装，清理 4 处悬空/错误包配置：`collectd-mod-contextswith` 拼写错误（正确插件名 `contextswitch`，已修正）；`kmod-crypto-misc`（immortalwrt 6.18 内核已拆分为独立算法包）、`sqm-scripts-nss`（上游无此包，仅标准 sqm-scripts）、`zip`（immortalwrt 已移除、由 7z 替代）均为上游不存在导致的悬空配置，已从 compile_base.config / fragments/nss.config 移除 |
 
 ## 定制清单
 
@@ -109,7 +110,7 @@
 |----|------|------|
 | `kmod-mt7921u` / `kmod-mt7921-firmware` / `kmod-mt7921-common` | `d100602` | MT7921U USB 无线网卡驱动和固件 |
 | `luci-app-dockerman` + 中文本地化 | `d100602`；`ba0dd97` 起改官方 ucode 版 | Docker 管理面板；原 lisaac 版依赖 `luci-lib-docker`（v0.3.4 带 v 前缀，APK 打包版本号无效），2026-08-14 起停用 lisaac 覆盖、改用 immortalwrt 官方版（不依赖该库、自带 zh_Hans，见修订时间线） |
-| `luci-app-easymesh` | `d100602`；`当前提交` 起从 custom_feed 同步生效 | EasyMesh 组网（基于 kmod-batman-adv + 802.11s）；2026-08-15 起 custom_feed 同步 kenzok8/small-package 的 `luci-app-easymesh`（ntlf9t 版，此前官方 luci 无此包导致配置悬空、界面缺失，见修订时间线） |
+| `luci-app-easymesh` | `d100602`；`a02cc31` 起从 custom_feed 同步生效 | EasyMesh 组网（基于 kmod-batman-adv + 802.11s）；2026-08-15 起 custom_feed 同步 kenzok8/small-package 的 `luci-app-easymesh`（ntlf9t 版，此前官方 luci 无此包导致配置悬空、界面缺失，见修订时间线） |
 | `luci-app-openlist` | `d100602` | OpenList 应用 |
 | `luci-app-openclash` | `d100602` | OpenClash 代理客户端 |
 | `luci-app-zerotier` | `d100602` | ZeroTier 虚拟组网 |
