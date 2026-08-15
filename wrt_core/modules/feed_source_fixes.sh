@@ -224,7 +224,16 @@ fix_quickstart() {
         fi
     fi
 
-
+    # ⭐ 本地定制：移除 quickstart 的"网络向导"(NetworkGuide) 菜单及其后端函数。
+    # quickstart.lua 中 NetworkGuide 为硬编码 entry，无法经 uci 关闭，故构建期删除。
+    local controller_path="$(get_custom_feed_worktree_dir)/luci-app-quickstart/luasrc/controller/quickstart.lua"
+    if [ -f "$controller_path" ]; then
+        sed -i \
+            -e '/{"admin", "network_guide"/d' \
+            -e '/^function networkguide_index()/,/^end$/d' \
+            "$controller_path"
+        echo "已移除 quickstart 的 NetworkGuide（网络向导）菜单注册。"
+    fi
 }
 
 
