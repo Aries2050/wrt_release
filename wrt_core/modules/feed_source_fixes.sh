@@ -234,6 +234,15 @@ fix_quickstart() {
             "$controller_path"
         echo "已移除 quickstart 的 NetworkGuide（网络向导）菜单注册。"
     fi
+
+    # ⭐ 本地定制：移除 quickstart 首页的"网络向导"(NetworkGuide) 功能卡片。
+    # 首页 feature-card 数据内置于 quickstart 前端编译产物 index.js（icon:"navigation" 卡片），
+    # 无 uci/配置开关，构建期 sed 删除该卡片对象及其后逗号（index.js 为单行，需子串替换）。
+    local qs_js_path="$(get_custom_feed_worktree_dir)/luci-app-quickstart/htdocs/luci-static/quickstart/index.js"
+    if [ -f "$qs_js_path" ]; then
+        sed -i 's/{icon:"navigation"[^}]*},/ /' "$qs_js_path"
+        echo "已移除 quickstart 首页的 NetworkGuide（网络向导）功能卡片。"
+    fi
 }
 
 

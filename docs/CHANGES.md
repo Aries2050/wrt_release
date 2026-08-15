@@ -67,7 +67,8 @@
 | 2026-08-15 | `eff1cc4` | 修复 luci-app-cupsd 的 CUPS 界面 500（`/admin/services/cupsd` Runtime error）：APK 迁移后移除 `luci-lib-ipkg`，`page1.lua` 的 `require("luci.model.ipkg")` 成死引用（页面未实际使用该模块）→ module not found；`cups.sh` 新增 `fix_cups_luci_ipkg_require()`（`stage_post_install_package_fixes` 调用）删除该 require 行，`update.sh` 接入 |
 | 2026-08-15 | `a02cc31` | 修复 luci-app-easymesh 界面缺失：`compile_base.config` 长期启用该包但上游 luci（immortalwrt/openwrt）均无此包、custom_feed 未同步 → 配置悬空、EasyMesh 界面从未编入固件；`custom_feed.sh` 稀疏同步 kenzok8/small-package 的 `luci-app-easymesh`（ntlf9t 版 v2.0，依赖 kmod-batman-adv/batctl-default/dawn 自动拉入，wpad-mesh-openssl 已满足）并加入 `required_feed_dirs` 校验；`compile_base.config` 补 `luci-i18n-easymesh-zh-cn` |
 | 2026-08-15 | `85188c7` | 全量对比 deconfig 期望包 vs 固件实际安装，清理 4 处悬空/错误包配置：`collectd-mod-contextswith` 拼写错误（正确插件名 `contextswitch`，已修正）；`kmod-crypto-misc`（immortalwrt 6.18 内核已拆分为独立算法包）、`sqm-scripts-nss`（上游无此包，仅标准 sqm-scripts）、`zip`（immortalwrt 已移除、由 7z 替代）均为上游不存在导致的悬空配置，已从 compile_base.config / fragments/nss.config 移除 |
-| 2026-08-15 | `当前提交` | 移除 quickstart 的"网络向导"(NetworkGuide) 菜单：`quickstart.lua` 硬编码注册（`{"admin","network_guide"}` 两级 entry + `networkguide_index()` 函数），无法经 uci 关闭；`feed_source_fixes.sh` 的 `fix_quickstart()` 构建期 sed 删除对应 entry 行与函数（保留 QuickStart 首页等其余菜单） |
+| 2026-08-15 | `38d1f23` | 移除 quickstart 的"网络向导"(NetworkGuide) 菜单：`quickstart.lua` 硬编码注册（`{"admin","network_guide"}` 两级 entry + `networkguide_index()` 函数），无法经 uci 关闭；`feed_source_fixes.sh` 的 `fix_quickstart()` 构建期 sed 删除对应 entry 行与函数（保留 QuickStart 首页等其余菜单） |
+| 2026-08-15 | `当前提交` | 移除 quickstart 首页（Vue 界面）的"网络向导"功能卡片：首页 feature-card 数据内置于 quickstart 前端编译产物 `index.js`（`icon:"navigation"` 卡片，标题/副标题/tag/color:purple/link:/network），无 uci/配置开关，仅能前端层删除；`fix_quickstart()` 构建期 sed 子串替换删除该卡片对象（index.js 为单行 minified，不能用行删除；`icon:"navigation"` 唯一，已实测删除后数组无残留逗号） |
 
 ## 定制清单
 
