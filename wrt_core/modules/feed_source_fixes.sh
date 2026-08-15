@@ -10,7 +10,7 @@ remove_unwanted_packages() {
         "luci-app-msd_lite" "luci-app-unblockneteasemusic" \
         "luci-app-adguardhome" "luci-app-tailscale" \
         # 由 wrt_core/packages/ 本地源码接管（install_local_packages）
-        "luci-app-qbittorrent"
+        "luci-app-qbittorrent" "luci-app-openvpn-server"
     )
     local packages_net=(
         "haproxy" "xray-core" "xray-plugin" "dns2socks" "alist" "hysteria"
@@ -18,7 +18,7 @@ remove_unwanted_packages() {
         "sing-box" "v2ray-core" "v2ray-geodata" "v2ray-plugin" "tuic-client"
         "chinadns-ng" "ipt2socks" "tcping" "trojan-plus" "simple-obfs" "shadowsocksr-libev"
         "dae" "daed" "mihomo" "geoview" "open-app-filter" "msd_lite" \
-        "tailscale"
+        "tailscale" "openvpn-easy-rsa"
     )
     local packages_utils=(
         "cups"

@@ -62,7 +62,8 @@
 | 2026-08-14 | `5346670` | LuCI 包管理界面：启用 `luci-app-package-manager`（APK 原生界面，`PKG_PROVIDES:=luci-app-opkg`，自动检测 apk/opkg），移除 legacy `luci-lib-ipkg` |
 | 2026-08-14 | `ba0dd97` | dockerman 改用 immortalwrt 官方 ucode 版（停用 lisaac 覆盖）：lisaac 版依赖 `luci-lib-docker`（`PKG_VERSION:=v0.3.4` 带 `v` 前缀，APK 打包版本号无效导致 `luci-lib-docker-v0.3.4-r1.apk` 构建失败）；官方版不依赖该库且自带 zh_Hans 中文；`update.sh` 不再调用 `update_dockerman()`，`docker.sh` 的 dockerman nftables 补丁对官方版自动 no-op（官方版无 `init.d/dockerman`） |
 | 2026-08-15 | `6d6203d` | argon 主题换回官方 jerrykuku 源（`wrt_core/modules/package_source_updates.sh` `update_argon()`）：ZqinKing fork（2.4.3，2026-03 停更）ucode 模板用 `import { srand } from 'math'`（登录页随机背景）但 Makefile 漏声明 `+ucode-mod-math` → 固件缺 `math.so` → LuCI `header.ut` 编译失败（500）；官方版（2.4.6+）模板不用 math 模块，持续维护 |
-| 2026-08-15 | `当前提交` | 修复 luci-app-tailscale 与 tailscale 二进制包文件冲突（APK 严格 ownership 检查）：`custom_feed.sh` 同步 kenzok8 版后移除其自带 `/etc/config/tailscale` 与 `/etc/init.d/tailscale`（由二进制包提供），并在 uci-defaults/40_luci-tailscale 首次开机幂等补充二进制包 config 缺失的界面/hotplug 依赖字段（enabled/config_path/accept_dns） |
+| 2026-08-15 | `22d4f12` | 修复 luci-app-tailscale 与 tailscale 二进制包文件冲突（APK 严格 ownership 检查）：`custom_feed.sh` 同步 kenzok8 版后移除其自带 `/etc/config/tailscale` 与 `/etc/init.d/tailscale`（由二进制包提供），并在 uci-defaults/40_luci-tailscale 首次开机幂等补充二进制包 config 缺失的界面/hotplug 依赖字段（enabled/config_path/accept_dns） |
+| 2026-08-15 | `当前提交` | OpenVPN 服务器界面改用 kiddin9/openwrt-openvpn（`wrt_core/packages/` 本地源码接管 `luci-app-openvpn-server` v1.0-r3 + `openvpn-easy-rsa-whisky`），适配 ImmortalWRT 25.12 openvpn 无官方 init.d 的 netifd 机制：新增 `/etc/init.d/openvpn` 桥接脚本（restart 时把界面配置 `/etc/config/openvpn` 全量同步到 `network.myvpn` 并按 `openvpn.myvpn.enabled` ifup/ifdown）、`base.lua` proto 值改服务端形式（tcp-server/tcp6-server）并加保存即应用（on_after_commit）、`genovpn.sh` 客户端 proto 转换；`remove_unwanted_packages` 移除 immortalwrt/luci 同名 `luci-app-openvpn-server` 与官方 `openvpn-easy-rsa`（避免 APK 文件冲突）；compile_base.config 启用 `openvpn-easy-rsa-whisky`、移除悬空 `luci-i18n-openvpn-server-zh-cn` |
 
 ## 定制清单
 
@@ -116,10 +117,10 @@
 | `ca-certificates` | `d100602` | CA 根证书 |
 | `adb` | `d100602` | Android Debug Bridge |
 | `7z` / `bsdtar` / `bzip2` / `cfdisk` / `cli` / `fdisk` / `lz4` / `lzmadec` / `lzmainfo` / `sfdisk` / `tar` / `unzip` / `zip` | `d100602` | 压缩与磁盘工具 |
-| `openvpn-openssl` + `luci-app-openvpn-server`（DCO / FRAGMENT / LZ4） | `d100602` | OpenVPN 服务端 |
+| `openvpn-openssl` + `luci-app-openvpn-server`（DCO / FRAGMENT / LZ4） | `d100602`；`当前提交` 起改用 kiddin9/openwrt-openvpn | OpenVPN 服务端；2026-08-15 起 `luci-app-openvpn-server` 改用 kiddin9 版（`wrt_core/packages/` 本地源码，v1.0-r3 + `openvpn-easy-rsa-whisky`），适配 ImmortalWRT 25.12 无 init.d 的 netifd 机制（新增 `/etc/init.d/openvpn` 桥接脚本同步 `network.myvpn` 并启停，见修订时间线） |
 | ovpn-dco 编译修复 | `96ffc2e` | `sync_ovpn_dco_patches()`（`wrt_core/modules/feed_source_fixes.sh`）：同步上游 `54c4f0f` 的 0001/0002 补丁到 feeds 版本 ovpn-dco，修复 Linux 6.18.40+ `proto::recvmsg` addr_len 签名编译错误；规避 `feeds install -a -f` 覆盖丢失 core 补丁 |
 | luci-app-qbittorrent rpcd 修复 | `975c183` | rpcd 插件 `luci.qbittorrent` 置为可执行（git `100755`）；`install_local_packages()` 复制后强制 `chmod +x` `root/usr/libexec/rpcd/*`，修复 LuCI qBittorrent 页 `Object not found` |
-| `tailscale` + `luci-app-tailscale` | `d100602`；`当前提交` 起处理 APK 文件冲突 | Tailscale 虚拟组网（从 custom_feed 拉取）；2026-08-15 起移除 luci-app-tailscale 自带 config/init（与二进制包冲突），uci-defaults 幂等补充字段（见修订时间线） |
+| `tailscale` + `luci-app-tailscale` | `d100602`；`22d4f12` 起处理 APK 文件冲突 | Tailscale 虚拟组网（从 custom_feed 拉取）；2026-08-15 起移除 luci-app-tailscale 自带 config/init（与二进制包冲突），uci-defaults 幂等补充字段（见修订时间线） |
 | `jq` | `707f49e` | JSON 命令行处理工具 |
 | `kmod-rt2800-usb` / `rt2800-usb-firmware` | `feat/add-usb-wifi-drivers` | RT3070/Ralink RT2870 USB 无线网卡驱动和固件 |
 | `kmod-rtw88-8812au` / `rtl8812a-firmware` | `feat/add-usb-wifi-drivers` | RTL8812AU USB 无线网卡主线驱动（`rtw88` 8812A spec，无线主线 backport） |

@@ -1,0 +1,87 @@
+#!/bin/sh /etc/rc.common
+# ⭐ 本地定制：ImmortalWRT 25.12 的 openvpn 包已移除官方 /etc/init.d/openvpn
+# （openvpn 2.7.5 起改为 netifd openvpn 协议，通过 network 接口管理）。
+# 本脚本桥接老式 LuCI 界面（luci-app-openvpn-server，kiddin9 版）的 init.d 调用到
+# netifd 接口（myvpn）：
+#   - restart/reload：把界面配置(/etc/config/openvpn)全量同步到 network.myvpn，
+#     再按 openvpn.myvpn.enabled 决定 ifup / ifdown
+#   - 使界面的「启用/停用」开关与配置保存真正生效
+# 注意：openvpn 包自带的 60_openvpn_migrate.sh 在首次开机时也会做一次迁移，
+#       本脚本在每次启停时重新同步，保证界面改动即时生效。
+
+START=50
+STOP=15
+
+IFACE="myvpn"
+
+_sync_config() {
+    uci -q get openvpn.myvpn >/dev/null 2>&1 || return 1
+
+    # 确保 netifd 接口存在且使用 openvpn 协议
+    [ "$(uci -q get "network.$IFACE")" = "interface" ] || \
+        uci -q set "network.$IFACE=interface"
+    uci -q set "network.$IFACE.proto=openvpn"
+
+    # 逐字段同步（先清后设，保证 list 项更新正确）
+    while IFS= read -r line; do
+        line=${line#openvpn.myvpn.}
+        case "$line" in
+            *.*=*) ;;
+            *) continue ;;
+        esac
+        opt=${line%%=*}
+        case "$opt" in
+            proto|ovpnproto) continue ;;   # proto 固定为 openvpn；ovpnproto 单独处理
+        esac
+
+        uci -q delete "network.$IFACE.$opt"
+        if uci -q get "openvpn.myvpn.$opt" >/dev/null 2>&1; then
+            if [ "$(uci -q get "openvpn.myvpn.$opt" | wc -l)" -gt 1 ]; then
+                while IFS= read -r val; do
+                    [ -n "$val" ] && uci -q add_list "network.$IFACE.$opt=$val"
+                done <<EOF
+$(uci -q get "openvpn.myvpn.$opt")
+EOF
+            else
+                uci -q set "network.$IFACE.$opt=$(uci -q get "openvpn.myvpn.$opt")"
+            fi
+        fi
+    done <<EOF
+$(uci -q show openvpn.myvpn)
+EOF
+
+    # 协议：界面 openvpn.myvpn.proto（tcp-server/udp/...）→ netifd ovpnproto
+    uci -q delete "network.$IFACE.ovpnproto"
+    if uci -q get openvpn.myvpn.proto >/dev/null 2>&1; then
+        uci -q set "network.$IFACE.ovpnproto=$(uci -q get openvpn.myvpn.proto)"
+    fi
+
+    uci -q commit network
+
+    # 让 netifd 重读该接口配置（接口不存在时回退全局 reload）
+    ubus call "network.interface.$IFACE" reload 2>/dev/null || \
+        ubus call network reload 2>/dev/null
+}
+
+start() {
+    _sync_config
+    if [ "$(uci -q get openvpn.myvpn.enabled)" = "1" ]; then
+        ifup "$IFACE" 2>/dev/null
+    else
+        ifdown "$IFACE" 2>/dev/null
+    fi
+}
+
+stop() {
+    ifdown "$IFACE" 2>/dev/null
+}
+
+restart() {
+    stop
+    sleep 1
+    start
+}
+
+reload() {
+    restart
+}
