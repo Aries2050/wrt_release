@@ -56,11 +56,26 @@ install_opkg_distfeeds() {
         # ImmortalWRT 25.12-SNAPSHOT 官方源已全面切换为 APK（含 packages.adb + packages.adb.sig）。
         if [[ "${PACKAGE_MANAGER:-apk}" == "apk" ]]; then
             cat <<'EOF' >"$distfeeds_conf"
+# ImmortalWRT 25.12-SNAPSHOT 官方源
 https://downloads.immortalwrt.org/releases/25.12-SNAPSHOT/packages/aarch64_cortex-a53/base/packages.adb
 https://downloads.immortalwrt.org/releases/25.12-SNAPSHOT/packages/aarch64_cortex-a53/luci/packages.adb
 https://downloads.immortalwrt.org/releases/25.12-SNAPSHOT/packages/aarch64_cortex-a53/packages/packages.adb
 https://downloads.immortalwrt.org/releases/25.12-SNAPSHOT/packages/aarch64_cortex-a53/routing/packages.adb
 https://downloads.immortalwrt.org/releases/25.12-SNAPSHOT/packages/aarch64_cortex-a53/telephony/packages.adb
+
+# ⭐ 本地定制：国内镜像（北京大学开源镜像站，同步官方未重新签名，同一 25.12 公钥可验证）
+https://mirrors.pku.edu.cn/immortalwrt/releases/25.12-SNAPSHOT/packages/aarch64_cortex-a53/base/packages.adb
+https://mirrors.pku.edu.cn/immortalwrt/releases/25.12-SNAPSHOT/packages/aarch64_cortex-a53/luci/packages.adb
+https://mirrors.pku.edu.cn/immortalwrt/releases/25.12-SNAPSHOT/packages/aarch64_cortex-a53/packages/packages.adb
+https://mirrors.pku.edu.cn/immortalwrt/releases/25.12-SNAPSHOT/packages/aarch64_cortex-a53/routing/packages.adb
+https://mirrors.pku.edu.cn/immortalwrt/releases/25.12-SNAPSHOT/packages/aarch64_cortex-a53/telephony/packages.adb
+
+# ⭐ 本地定制：国内镜像（vsean）
+https://mirrors.vsean.net/openwrt/releases/25.12-SNAPSHOT/packages/aarch64_cortex-a53/base/packages.adb
+https://mirrors.vsean.net/openwrt/releases/25.12-SNAPSHOT/packages/aarch64_cortex-a53/luci/packages.adb
+https://mirrors.vsean.net/openwrt/releases/25.12-SNAPSHOT/packages/aarch64_cortex-a53/packages/packages.adb
+https://mirrors.vsean.net/openwrt/releases/25.12-SNAPSHOT/packages/aarch64_cortex-a53/routing/packages.adb
+https://mirrors.vsean.net/openwrt/releases/25.12-SNAPSHOT/packages/aarch64_cortex-a53/telephony/packages.adb
 EOF
         else
             cat <<'EOF' >"$distfeeds_conf"
