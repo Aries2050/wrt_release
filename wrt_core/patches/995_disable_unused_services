@@ -1,0 +1,97 @@
+#!/bin/sh
+# ⭐ 本地定制：995_disable_unused_services — UCI defaults
+#
+# 原则：LuCI 界面显示"未启用"的服务，不应自动运行（运行状态与界面一致）。
+# 首次开机（刷机/升级后）执行一次：对"服务级 enabled=0"（界面明确未启用）的
+# 候选服务执行 disable + stop，使其不再开机自启。
+#
+# ⚠ 安全性设计：
+#   1. 候选清单与 uci 路径显式硬编码（均经人工确认是"服务级"开关），
+#      绝不自动扫描 /etc/init.d，避免误伤。
+#   2. 核心系统服务白名单（网络/WiFi/DNS/防火墙/SSH/Web 等）防御性禁止处理，
+#      即使被误加入候选也直接跳过。
+#   3. 只读取 enabled 值，仅当明确等于 "0" 才动作；读取失败/无值一律跳过
+#      （未知状态不动，避免误停）。
+#   4. 幂等：重复执行无副作用（disable/stop 本身幂等；uci-defaults 成功后自动删除）。
+#   5. 单服务失败不中断整体，静默处理（2>/dev/null）。
+#   6. uci-defaults 机制保证：返回 0 后脚本被移除，仅执行一次。
+#   7. 若误停某服务，可用 /etc/init.d/<svc> enable && /etc/init.d/<svc> start 恢复。
+#
+# 说明：此脚本在 rcS 早期（各 S 服务启动前）执行，disable 后本开机周期
+# 即不再启动该服务，与界面显示保持同步。
+
+# ── 核心服务保护名单（防御性白名单，绝不处理）─────────────────────────
+# 注意：这些服务的 uci 里 enabled=0 通常是"内部配置项"（规则/接口/挂载点/
+# 计划任务），不是服务级开关，误 disable 会导致系统异常。
+CORE_SERVICES="network firewall dnsmasq odhcpd dropbear nginx uhttpd rpcd log cron sysctl sysfixtime system boot fstab wpad"
+
+# ── 候选服务清单：服务名|uci 路径（enabled 选项完整路径）───────────────
+# 路径均来自目标固件实际 uci 配置（服务级开关，人工核验）：
+#   cupsd     luci-app-cupsd 打印服务器（config cupsd 'config'）
+#   passwall  科学上网（匿名 section @global[0]）
+#   mosdns    DNS 分流
+#   smartdns  DNS 服务器（@smartdns[0]）
+#   pbr       策略路由
+#   tailscale 组网（settings）
+#   zerotier  组网（global）
+#   microsocks SOCKS 代理
+#   openlist  OpenList
+#   vlmcsd    KMS 服务器
+#   adguardhome 广告过滤（config）
+#   easytier  组网（@easytier[0]）
+#   lucky     Lucky 工具（@lucky[0]）
+# 注：openclash 的 @dns_servers[0].enabled 是 DNS 条目而非服务开关，未列入；
+#     qbittorrent/samba4/dockerd/ttyd 等无服务级 enabled 开关，亦未列入。
+CANDIDATES='
+cupsd|cupsd.config.enabled
+passwall|passwall.@global[0].enabled
+mosdns|mosdns.config.enabled
+smartdns|smartdns.@smartdns[0].enabled
+pbr|pbr.config.enabled
+tailscale|tailscale.settings.enabled
+zerotier|zerotier.global.enabled
+microsocks|microsocks.config.enabled
+openlist|openlist.config.enabled
+vlmcsd|vlmcsd.config.enabled
+adguardhome|adguardhome.config.enabled
+easytier|easytier.@easytier[0].enabled
+lucky|lucky.@lucky[0].enabled
+'
+
+for entry in $CANDIDATES; do
+    svc="${entry%%|*}"
+    path="${entry#*|}"
+
+    # 防御：禁止处理核心服务（即使误入候选也跳过）
+    case " $CORE_SERVICES " in
+        *" $svc "*)
+            logger -t "disable-unused" "跳过核心服务: $svc"
+            continue
+            ;;
+    esac
+
+    # 服务脚本不存在则跳过（固件未打包该服务）
+    [ -x "/etc/init.d/$svc" ] || continue
+
+    # 读取 enabled；无值/读取失败视为未知状态，跳过（不动作）
+    val="$(uci -q get "$path" 2>/dev/null)"
+    [ -n "$val" ] || continue
+
+    if [ "$val" = "0" ]; then
+        /etc/init.d/$svc disable 2>/dev/null
+        /etc/init.d/$svc stop 2>/dev/null
+        logger -t "disable-unused" "已停用未启用服务: $svc (enabled=0)"
+    fi
+done
+
+# ── passwall_server 特殊处理：无独立 enabled，跟随 passwall ────────────
+# passwall 未启用时，服务端组件一并停用。
+if [ -x /etc/init.d/passwall_server ]; then
+    if [ "$(uci -q get passwall.@global[0].enabled 2>/dev/null)" = "0" ]; then
+        /etc/init.d/passwall_server disable 2>/dev/null
+        /etc/init.d/passwall_server stop 2>/dev/null
+        logger -t "disable-unused" "已停用 passwall_server（跟随 passwall）"
+    fi
+fi
+
+exit 0

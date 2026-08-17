@@ -40,7 +40,8 @@ fix_default_set() {
     install -Dm544 "$BASE_PATH/patches/991_custom_settings" "$BUILD_DIR/package/base-files/files/etc/uci-defaults/991_custom_settings" && { ((++mark_uci)); _mark_ok "file_991_settings"; } || _mark_fail "file_991_settings" "install failed"
     install -Dm544 "$BASE_PATH/patches/992_set-wifi-uci.sh" "$BUILD_DIR/package/base-files/files/etc/uci-defaults/992_set-wifi-uci.sh" && { ((++mark_uci)); _mark_ok "file_992_wifi"; } || _mark_fail "file_992_wifi" "install failed"
     install -Dm544 "$BASE_PATH/patches/993_run-custom-boot-scripts" "$BUILD_DIR/package/base-files/files/etc/uci-defaults/993_run-custom-boot-scripts" && { ((++mark_uci)); _mark_ok "file_993_custom_boot"; } || _mark_fail "file_993_custom_boot" "install failed"
-    _mark_ok "uci_defaults" "${mark_uci}/4 files"
+    install -Dm544 "$BASE_PATH/patches/995_disable_unused_services" "$BUILD_DIR/package/base-files/files/etc/uci-defaults/995_disable_unused_services" && { ((++mark_uci)); _mark_ok "file_995_disable_services"; } || _mark_fail "file_995_disable_services" "install failed"
+    _mark_ok "uci_defaults" "${mark_uci}/5 files"
 
     if [ -f "$BUILD_DIR/package/emortal/autocore/files/tempinfo" ]; then
         if [ -f "$BASE_PATH/patches/tempinfo" ]; then
