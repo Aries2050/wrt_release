@@ -299,9 +299,26 @@ sync_ovpn_dco_patches() {
     # 导致 core 内补丁不生效、ovpn-backports 在 6.18.40+ 内核下编译失败。
     # 这里把 core 补丁同步到 feeds 版本（feeds/packages/kernel/ovpn-dco/patches/），
     # 编译时即自动应用到 ovpn-backports 源码。
+    #
+    # ⭐ 本地定制（2026-08-17）：ovpn-backports ≥ 7.1.0.2026080300 已在上游源码内置
+    #   OVPN_PROTO_RECVMSG_HAS_ADDR_LEN 修复（tcp.c 的 ovpn_tcp_recvmsg 签名条件化），
+    #   openwrt/packages 更新到该版本时也已删除 0002 补丁（patches 仅剩 0001）。
+    #   若仍把 core 的旧 0002 同步过去，应用到新版源码会 Hunk #1 FAILED 导致构建失败。
+    #   故按 feeds 实际 PKG_VERSION 判断：≥ 7.1.0.2026080300 时跳过 0002。
     local core_patches="$BUILD_DIR/package/kernel/ovpn-dco/patches"
     local feeds_dir="$BUILD_DIR/feeds/packages/kernel/ovpn-dco"
     local feeds_patches="$feeds_dir/patches"
+    local feeds_ver=""
+    local skip_patch=""
+
+    if [[ -f "$feeds_dir/Makefile" ]]; then
+        feeds_ver=$(sed -n 's/^PKG_VERSION:=7\.1\.0\.\([0-9][0-9]*\)$/\1/p' "$feeds_dir/Makefile" | head -1)
+        # ovpn-backports ≥ 7.1.0.2026080300 已内置 recvmsg 签名修复
+        if [[ -n "$feeds_ver" && "$feeds_ver" -ge 2026080300 ]]; then
+            skip_patch="0002-fix-6-18-40-recvmsg-signature.patch"
+            echo "ovpn-dco: feeds 版本 7.1.0.$feeds_ver 已内置 recvmsg 修复，跳过同步 $skip_patch"
+        fi
+    fi
 
     if [[ -d "$core_patches" && -d "$feeds_dir" ]]; then
         mkdir -p "$feeds_patches"
@@ -309,6 +326,9 @@ sync_ovpn_dco_patches() {
             [[ -f "$patch" ]] || continue
             local name
             name=$(basename "$patch")
+            if [[ -n "$skip_patch" && "$name" == "$skip_patch" ]]; then
+                continue
+            fi
             if [[ ! -f "$feeds_patches/$name" ]]; then
                 cp "$patch" "$feeds_patches/"
                 echo "ovpn-dco: 同步补丁 $name 至 feeds 版本（规避 -f 覆盖丢失 core 补丁）"
