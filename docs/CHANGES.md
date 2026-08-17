@@ -1,6 +1,6 @@
 # 本地定制更改概览
 
-> **最后更新**: 2026-08-15
+> **最后更新**: 2026-08-17
 
 本仓库源自 [ZqinKing/wrt_release](https://github.com/ZqinKing/wrt_release)，在此基础上有以下本地定制。
 
@@ -73,7 +73,8 @@
 | 2026-08-16 | `c5e8d60` | 暂时停用 OpenVPN LuCI 界面及其证书工具：审查 `luci-app-openvpn-server`（本地 kiddin9 版）发现多处逻辑问题（`auth_user_pass_verify` 用户名密码验证在 netifd 模式下因 file 类型 + 空格值被跳过而静默失效；`genovpn.sh` 用"选项存在性"判断开关导致 `float` 等误判；单条 `push` list 边界丢失等），先停用待修复；`compile_base.config` 注释 `luci-app-openvpn-server` 与 `openvpn-easy-rsa-whisky`（保留 `openvpn-openssl` 核心服务及 DCO/FRAGMENT 支持） |
 | 2026-08-16 | `52e1fa6` | 停用 easymesh：CI 构建在 apk install 阶段报 `unable to select packages: batctl-default / kmod-batman-adv`——`luci-app-easymesh`（kenzok8 版，a02cc31 引入）依赖的 `kmod-batman-adv`、`batctl-default` 在 ImmortalWRT 25.12 源码树中**不存在**（构建日志 `No feed for package ... found`，内核默认 `CONFIG_BATMAN_ADV` 未启用），之前的构建均死在更早的 qca-ssdk/openvpn-easy-rsa，该依赖问题从未暴露；`compile_base.config` 注释 `luci-app-easymesh` 与 `luci-i18n-easymesh-zh-cn`，待上游恢复 batman-adv 支持后再启用 |
 | 2026-08-17 | `52bff0c` | 修复软件源签名密钥未更新（`apk update` 报 UNTRUSTED signature）：ImmortalWRT 25.12-SNAPSHOT 官方源改用 25.12 专属签名公钥（`immortalwrt-25.12.pem`，签名 key `467a35c14d7fbc5c`），但 main 分支 `openwrt-keyring` 仅安装 `immortalwrt-snapshots.pem`/`openwrt-snapshots.pem`（旧快照密钥）→ 新固件同样无法验证源签名；`service_fixes.sh` 新增 `fix_openwrt_keyring_25_12()`（`update.sh` 接入），构建期给 `openwrt-keyring` 的 Makefile 追加安装 `immortalwrt-25.12.pem` 与 `openwrt-25.12.pem`（keyring 源仓库 14e1f88 的 `apk/` 目录已含这两个文件，仅 Makefile 未安装）；已用 sed 模拟验证（3 行、tab/换行正确） |
-| 2026-08-17 | `当前提交` | 软件源添加国内镜像：`install_opkg_distfeeds` 的 apk 分支在官方源（downloads.immortalwrt.org）后追加 **北京大学开源镜像站**（`mirrors.pku.edu.cn/immortalwrt`）与 **vsean**（`mirrors.vsean.net/openwrt`）两个国内镜像（各 5 feed：base/luci/packages/routing/telephony），已验证 packages.adb 全部 200 且签名与官方一致（镜像未重新签名，同一 25.12 公钥可验证）；镜像作为 fallback 冗余源，官方不可达时自动切换；TUNA/USTC/阿里云/腾讯云当前未同步 25.12-SNAPSHOT 故未加入 |
+| 2026-08-17 | `fb34664` | 软件源添加国内镜像：`install_opkg_distfeeds` 的 apk 分支在官方源（downloads.immortalwrt.org）后追加 **北京大学开源镜像站**（`mirrors.pku.edu.cn/immortalwrt`）与 **vsean**（`mirrors.vsean.net/openwrt`）两个国内镜像（各 5 feed：base/luci/packages/routing/telephony），已验证 packages.adb 全部 200 且签名与官方一致（镜像未重新签名，同一 25.12 公钥可验证）；镜像作为 fallback 冗余源，官方不可达时自动切换；TUNA/USTC/阿里云/腾讯云当前未同步 25.12-SNAPSHOT 故未加入 |
+| 2026-08-17 | `当前提交` | 移除 vsean 国内镜像源：实测 HD（192.168.127.1）上 `mirrors.vsean.net` 连接挂起（BusyBox `wget -T` 仅空闲超时，连接挂起时无限等待）导致 `apk update` 卡死并占数据库锁；`install_opkg_distfeeds` 的 apk 分支仅保留官方 + PKU（各 5 feed），GD/HD 设备端同步移除并验证 `OK: 10846 distinct packages available` |
 
 ## 定制清单
 
