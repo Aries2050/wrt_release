@@ -137,6 +137,7 @@ stage_pre_install_source_fixes() {
     update_nginx_ubus_module
     check_default_settings
     install_opkg_distfeeds
+    fix_openwrt_keyring_25_12
     fix_easytier_mk
     remove_attendedsysupgrade
     fix_kconfig_recursive_dependency

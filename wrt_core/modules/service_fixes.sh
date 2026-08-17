@@ -89,6 +89,18 @@ sed -ri \'/check_signature/s@^[^#]@#&@\' /etc/opkg.conf\\n" $emortal_def_dir/fil
     fi
 }
 
+fix_openwrt_keyring_25_12() {
+    # ⭐ 本地定制：ImmortalWRT 25.12-SNAPSHOT 官方源改用 25.12 专属签名公钥
+    #（immortalwrt-25.12.pem，签名 key 467a35c14d7fbc5c），但 main 分支 openwrt-keyring
+    # 仅安装 immortalwrt-snapshots.pem / openwrt-snapshots.pem（旧快照密钥）→
+    # apk update 报 UNTRUSTED signature（软件源密钥未更新）。
+    # 构建期给 openwrt-keyring 追加安装 25.12 专属公钥（keyring 源仓库 14e1f88 的 apk/ 已含）。
+    local keyring_makefile="$BUILD_DIR/package/system/openwrt-keyring/Makefile"
+    if [ -f "$keyring_makefile" ] && ! grep -q 'immortalwrt-25.12.pem' "$keyring_makefile"; then
+        sed -i 's#\t\$(INSTALL_DATA) \$(PKG_BUILD_DIR)/apk/immortalwrt-snapshots.pem \$(1)/etc/apk/keys/#&\n\t\$(INSTALL_DATA) \$(PKG_BUILD_DIR)/apk/immortalwrt-25.12.pem \$(1)/etc/apk/keys/\n\t\$(INSTALL_DATA) \$(PKG_BUILD_DIR)/apk/openwrt-25.12.pem \$(1)/etc/apk/keys/#' "$keyring_makefile"
+        echo "已为 openwrt-keyring 追加安装 25.12 专属签名公钥。"
+    fi
+}
 
 update_script_priority() {
     local qca_drv_path="$BUILD_DIR/package/feeds/nss_packages/qca-nss-drv/files/qca-nss-drv.init"
