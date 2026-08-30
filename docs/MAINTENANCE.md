@@ -108,6 +108,8 @@ stage_post_install_package_fixes → 已安装包的修正 + 验证
 
 **重要**: 阶段顺序不可调整，feeds install 前后依赖的目录结构不同。
 
+**上游提交锁定（COMMIT_HASH）**：设备 INI 可设 `COMMIT_HASH=<完整提交哈希>`，把上游源码锁定到指定提交（detached HEAD），用于规避上游潜在破坏性改动。浅克隆（`--depth 1`）下 `reset_feeds_conf()` 会先 `git fetch --depth 1 origin <hash>` 再检出，保证锁定到历史提交也可靠；`pre_clone_action.sh` 生成的 `repo_flag` 已纳入锁定提交，切换锁定时 CI 缓存键自动变化。默认不锁定（`none`/未设置），保持跟随分支最新。
+
 ## 同步上游
 
 ### 首次配置上游远程

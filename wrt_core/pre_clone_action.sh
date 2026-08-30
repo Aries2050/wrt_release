@@ -31,6 +31,8 @@ read_ini_by_key() {
 REPO_URL=$(read_ini_by_key "REPO_URL")
 REPO_BRANCH=$(read_ini_by_key "REPO_BRANCH")
 REPO_BRANCH=${REPO_BRANCH:-main}
+COMMIT_HASH=$(read_ini_by_key "COMMIT_HASH")
+COMMIT_HASH=${COMMIT_HASH:-none}
 # GitHub Actions usually runs in root of repo, so build dir should be relative to repo root
 # We need to construct absolute path or ensure context is correct.
 # Assuming this script is run from repo root or wrt_core.
@@ -39,8 +41,14 @@ REPO_BRANCH=${REPO_BRANCH:-main}
 BUILD_DIR="$BASE_PATH/../action_build"
 
 echo $REPO_URL $REPO_BRANCH
-# Write flag one level up from wrt_core (repo root usually)
-echo "$REPO_URL/$REPO_BRANCH" >"$BASE_PATH/../repo_flag"
+# ⭐ 本地定制：repo_flag 是 CI 缓存键的一部分（cache key 的源码身份指纹）。
+# 上游提交锁定（COMMIT_HASH）一并纳入：切换锁定提交时缓存键随之变化，
+# 避免误用其它提交产物缓存。默认 none（不锁定）时保持原格式不变。
+if [[ $COMMIT_HASH != "none" ]]; then
+    echo "$REPO_URL/$REPO_BRANCH@$COMMIT_HASH" >"$BASE_PATH/../repo_flag"
+else
+    echo "$REPO_URL/$REPO_BRANCH" >"$BASE_PATH/../repo_flag"
+fi
 
 # 写入配置指纹，用于缓存 key 检测配置变更
 GLIBC_COMPAT=$(read_ini_by_key "GLIBC_COMPAT")

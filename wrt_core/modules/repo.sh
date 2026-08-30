@@ -41,6 +41,13 @@ reset_feeds_conf() {
     git_retry clean -f -d
     git_retry pull
     if [[ $COMMIT_HASH != "none" ]]; then
+        # ⭐ 本地定制：上游提交锁定（COMMIT_HASH）。
+        # clone 为浅克隆（--depth 1），非 tip 的历史提交不在本地对象库，直接 checkout 会失败；
+        # 先显式抓取该提交再检出（detached HEAD），保证锁定到任意历史提交都可靠。
+        # 用于规避上游潜在破坏性改动；启用方式：设备 INI 设置 COMMIT_HASH=<完整提交哈希>，
+        # 默认 none（不锁定）。切换锁定提交时 CI 缓存随 repo_flag 指纹自动失效。
+        git_retry fetch --depth 1 origin "$COMMIT_HASH"
         git_retry checkout "$COMMIT_HASH"
+        echo "已锁定源码到上游提交 $COMMIT_HASH（分支 $REPO_BRANCH）"
     fi
 }
