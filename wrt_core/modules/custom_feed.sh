@@ -244,7 +244,10 @@ install_custom_feed() {
     # 统一从外部仓库同步指定包，避免分散维护 feeds.conf。
     custom_feed_sources=(
         "kenzok8/small-package|https://github.com/kenzok8/small-package.git||${base_custom_feed_packages[*]}"
-        "sbwml/luci-app-mosdns|https://github.com/sbwml/luci-app-mosdns.git|v5|mosdns luci-app-mosdns"
+        # ⭐ 本地定制：mosdns 仅同步 sbwml/luci-app-mosdns（v5）源，不使用 kenzok8/small-package
+        # 合集内的 mosdns（合集为定时拉取镜像、更新迟缓）；上游 2026-08-24 起
+        # luci-app-mosdns 依赖新增的 geo2txt 包，稀疏检出需一并包含，否则 rootfs 组装缺包失败
+        "sbwml/luci-app-mosdns|https://github.com/sbwml/luci-app-mosdns.git|v5|mosdns luci-app-mosdns geo2txt"
         "Openwrt-Passwall/openwrt-passwall|https://github.com/Openwrt-Passwall/openwrt-passwall.git|main|luci-app-passwall"
         "nikkinikki-org/OpenWrt-nikki|https://github.com/nikkinikki-org/OpenWrt-nikki.git|main|nikki luci-app-nikki mihomo-meta"
     )

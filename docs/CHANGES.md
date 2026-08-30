@@ -1,6 +1,6 @@
 # 本地定制更改概览
 
-> **最后更新**: 2026-08-17
+> **最后更新**: 2026-08-30
 
 本仓库源自 [ZqinKing/wrt_release](https://github.com/ZqinKing/wrt_release)，在此基础上有以下本地定制。
 
@@ -76,7 +76,8 @@
 | 2026-08-17 | `fb34664` | 软件源添加国内镜像：`install_opkg_distfeeds` 的 apk 分支在官方源（downloads.immortalwrt.org）后追加 **北京大学开源镜像站**（`mirrors.pku.edu.cn/immortalwrt`）与 **vsean**（`mirrors.vsean.net/openwrt`）两个国内镜像（各 5 feed：base/luci/packages/routing/telephony），已验证 packages.adb 全部 200 且签名与官方一致（镜像未重新签名，同一 25.12 公钥可验证）；镜像作为 fallback 冗余源，官方不可达时自动切换；TUNA/USTC/阿里云/腾讯云当前未同步 25.12-SNAPSHOT 故未加入 |
 | 2026-08-17 | `09484a0` | 移除 vsean 国内镜像源：实测 HD（192.168.127.1）上 `mirrors.vsean.net` 连接挂起（BusyBox `wget -T` 仅空闲超时，连接挂起时无限等待）导致 `apk update` 卡死并占数据库锁；`install_opkg_distfeeds` 的 apk 分支仅保留官方 + PKU（各 5 feed），GD/HD 设备端同步移除并验证 `OK: 10846 distinct packages available` |
 | 2026-08-17 | `1a01896` | 新增首次开机脚本 `995_disable_unused_services`：贯彻「服务运行状态与 LuCI 界面一致——界面未启用就不自动运行」原则；uci-defaults 机制开机执行一次，对清单内 `enabled=0` 的服务（cupsd/passwall/mosdns/smartdns/pbr/tailscale/zerotier/microsocks/openlist/vlmcsd + passwall_server 跟随）执行 disable+stop；安全性设计：候选清单与 uci 路径显式硬编码（人工核验的服务级开关）、核心服务白名单防御（network/firewall/dnsmasq 等绝不处理）、enabled 读取失败/无值一律跳过、幂等可重复、单服务失败不中断；`target_fixes.sh` `fix_default_set()` 接入安装（`uci_defaults` 标记 5/5）；已在 GD 实测验证不误伤核心服务与在用服务（adguardhome/easytier/lucky） |
-| 2026-08-17 | `当前提交` | 修复 CI 构建失败（ovpn-dco）：ovpn-backports 升级到 `7.1.0.2026080300` 后，源码已在 `tcp.c` 内置 `OVPN_PROTO_RECVMSG_HAS_ADDR_LEN` 修复（`ovpn_tcp_recvmsg` 签名条件化），openwrt/packages 更新时亦同步删除了 `0002-fix-6-18-40-recvmsg-signature.patch`（patches 仅剩 0001）；但 `sync_ovpn_dco_patches()` 仍把 core 旧版 `0002` 同步到 feeds → 应用到新版源码 `Hunk #1 FAILED at 170` 构建失败；已改为按 feeds 实际 `PKG_VERSION` 判断（≥ 7.1.0.2026080300 时跳过 0002），0001（EIP-197）保留同步 |
+| 2026-08-17 | `e56b0b3` | 修复 CI 构建失败（ovpn-dco）：ovpn-backports 升级到 `7.1.0.2026080300` 后，源码已在 `tcp.c` 内置 `OVPN_PROTO_RECVMSG_HAS_ADDR_LEN` 修复（`ovpn_tcp_recvmsg` 签名条件化），openwrt/packages 更新时亦同步删除了 `0002-fix-6-18-40-recvmsg-signature.patch`（patches 仅剩 0001）；但 `sync_ovpn_dco_patches()` 仍把 core 旧版 `0002` 同步到 feeds → 应用到新版源码 `Hunk #1 FAILED at 170` 构建失败；已改为按 feeds 实际 `PKG_VERSION` 判断（≥ 7.1.0.2026080300 时跳过 0002），0001（EIP-197）保留同步 |
+| 2026-08-30 | `当前提交` | mosdns 仅同步 sbwml/luci-app-mosdns（v5）源，不使用 kenzok8/small-package 合集包（合集为定时拉取镜像、更新迟缓）：上游 2026-08-24 起 `luci-app-mosdns` 将 v2dat 依赖替换为新增的 `geo2txt` 包（`LUCI_DEPENDS` 含 `+geo2txt`），而 custom_feed 稀疏检出仅含 `mosdns luci-app-mosdns` → `geo2txt` 未入 feed，rootfs 组装时 apk 无法解析依赖（`geo2txt (no such package)`）CI 构建失败；补全为 `mosdns luci-app-mosdns geo2txt` 三包（同仓库同源，geo2txt 为 golang 包随编译链自动构建）；small-package 未拉取 mosdns 系列包，无同名冲突 |
 
 ## 定制清单
 
