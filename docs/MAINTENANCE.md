@@ -331,9 +331,10 @@ cat docs/MAINTENANCE.md       # 了解项目结构和规则
 - 提交信息使用中文或英文，保持与项目历史一致
 - 涉及本地定制的内容在提交信息中标注 `[local]` 前缀
 
-#### 构建内预检
+#### 包文件属主冲突检测
 
-`build.sh` 将 `make` 拆为 `make package/compile` → `python3 scripts/check_pkg_conflicts.py --build-dir .`（包文件属主冲突预检，APK 语义、失败即停）→ 增量 `make` 收尾。预检扫描编译产物 `build_dir/target-*/*/.pkgdir/<bin>/` 安装树，按 apk origin（`pkginfo/<bin>.control` 的 `Source:`）跨源码包查重，一次列全所有 `trying to overwrite` 类冲突；同源码包子包共享文件属 apk 允许的静默覆盖，不报。
+- 独立工具：`python3 scripts/check_pkg_conflicts.py --build-dir <构建树>`，扫描编译产物 `build_dir/target-*/*/.pkgdir/<bin>/` 安装树，按 apk origin（`pkginfo/<bin>.control` 的 `Source:`）跨源码包查重，一次列全所有 `trying to overwrite` 类冲突；同源码包子包共享文件属 apk 允许的静默覆盖，不报。退出码 0/1/2。
+- 接入方式：`build.sh` 在 `make` 失败后自动补跑该扫描输出全量清单（apk 只报第一个即中止），便于一次修复全部冲突。曾尝试拆 `make package/compile` 以在 rootfs 前拦截，但该目标不含 world 的 prepare 阶段（`tools/` 宿主工具、`toolchain/`），冷构建下缺失 `staging_dir/host/bin/*`（如 sed）直接编译失败，已回退单体 `make`。
 
 #### 第 4 步：更新文档
 

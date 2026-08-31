@@ -17,7 +17,7 @@
 
 - 入口：`./build.sh <device> [debug|container|container_debug|config_preview]`
 - 流程：`wrt_core/update.sh`（7 阶段，顺序不可调整）
-- 检查：`python scripts/check_prebuilt.py`；构建树包文件属主冲突预检 `python scripts/check_pkg_conflicts.py --build-dir <构建树>`（APK 语义、编译后 rootfs 前，build.sh 已内置）；shell 脚本用 `bash -n`
+- 检查：`python scripts/check_prebuilt.py`；包文件属主冲突检测 `python scripts/check_pkg_conflicts.py --build-dir <构建树>`（APK 语义，build.sh 失败时自动补跑）；shell 脚本用 `bash -n`
 
 ## 完整规范
 

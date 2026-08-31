@@ -19,7 +19,7 @@
 - 主编译入口：`./build.sh <device> [debug|container|container_debug|config_preview]`
 - 核心构建流程：`wrt_core/update.sh`（7 个阶段，顺序不可调整）
 - 预编译包完整性检查：`python scripts/check_prebuilt.py`
-- 包文件属主冲突预检（APK 语义、构建树）：`python scripts/check_pkg_conflicts.py --build-dir <构建树>`
+- 包文件属主冲突检测（APK 语义、构建树）：`python scripts/check_pkg_conflicts.py --build-dir <构建树>`（build.sh 失败时自动补跑）
 - 修改 shell 脚本后建议用 `bash -n` 做语法检查
 
 ## 完整规范

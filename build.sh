@@ -466,14 +466,16 @@ if [[ -d $TARGET_DIR ]]; then
 fi
 
 make download -j$(($(nproc) * 2))
-# ⭐ 本地定制：拆分为「编译 → 包文件属主冲突预检 → 剩余阶段」。
-# APK 在 package/install（rootfs 组装）才对文件属主严格检查：冲突发生在全部包
-# 编译完成之后（约 2h+）且 apk 只报第一个即中止；此处在编译后先扫描 .pkgdir
-# 一次列出全部跨源码包冲突，失败即停（详见 scripts/check_pkg_conflicts.py）。
-# 通过后下方 make 的编译阶段为增量 no-op，流程等价于原单次全量 make。
-make package/compile -j$(($(nproc) + 1)) || make package/compile -j1 V=s
-python3 "$BASE_PATH/scripts/check_pkg_conflicts.py" --build-dir .
-make -j$(($(nproc) + 1)) || make -j1 V=s
+# ⭐ 本地定制：构建失败后补打包文件属主冲突全量清单（诊断/批量修复用）。
+# 曾尝试拆为 make package/compile → 预检 → make 收尾以在 rootfs 前拦截冲突，
+# 但 make package/compile 不含 world 的 prepare 阶段（tools/ 宿主工具 + toolchain/），
+# 冷构建（ccache 未命中）下 staging_dir/host/bin/sed 等缺失直接编译失败（Error 127）。
+# 故恢复单体 make 保证宿主工具按序构建；冲突检测以独立脚本 + 失败诊断形式接入。
+if ! make -j$(($(nproc) + 1)); then
+    make -j1 V=s || true
+    python3 "$BASE_PATH/scripts/check_pkg_conflicts.py" --build-dir . || true
+    exit 1
+fi
 
 FIRMWARE_DIR="$BASE_PATH/../firmware"
 \rm -rf "$FIRMWARE_DIR"
