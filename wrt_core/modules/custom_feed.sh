@@ -184,6 +184,24 @@ fi\
 }
 
 
+# ⭐ 本地定制：luci-app-oaf 与 appfilter（open-app-filter）ACL 文件冲突处理。
+# kenzok8/small-package 的 open-app-filter（appfilter 二进制包）与 luci-app-oaf 界面包
+# 都安装 usr/share/rpcd/acl.d/luci-app-oaf.json（上游重复注入），APK 严格 ownership
+# 检查下 rootfs 组装报 "trying to overwrite ... owned by appfilter" 失败 →
+# ACL 归 luci-app-oaf 界面包负责，移除 appfilter 侧的安装行与源文件。
+fix_oaf_appfilter_acl_conflict() {
+    local package_dir="$1"
+    local makefile_path="$package_dir/Makefile"
+
+    if [ -f "$makefile_path" ] && grep -q "luci-app-oaf.json" "$makefile_path"; then
+        sed -i '/luci-app-oaf\.json/d' "$makefile_path"
+        rm -f "$package_dir/files/luci-app-oaf.json"
+        echo "已处理 luci-app-oaf 与 appfilter 的 ACL 文件冲突（移除 appfilter 侧的 luci-app-oaf.json）。"
+    fi
+    return 0
+}
+
+
 register_local_feed_source() {
     local custom_feed_dir="$1"
     local feeds_path="$2"
@@ -286,6 +304,14 @@ install_custom_feed() {
     # ⭐ 本地定制：luci-app-tailscale 与 tailscale 二进制包文件冲突处理（APK 严格 ownership 检查）
     if [ -d "$custom_feed_dir/luci-app-tailscale" ]; then
         if ! fix_luci_app_tailscale_conflict "$custom_feed_dir/luci-app-tailscale"; then
+            rm -rf "$custom_feed_dir"
+            return 1
+        fi
+    fi
+
+    # ⭐ 本地定制：luci-app-oaf 与 appfilter 二进制包 ACL 文件冲突处理（APK 严格 ownership 检查）
+    if [ -d "$custom_feed_dir/open-app-filter" ]; then
+        if ! fix_oaf_appfilter_acl_conflict "$custom_feed_dir/open-app-filter"; then
             rm -rf "$custom_feed_dir"
             return 1
         fi

@@ -331,6 +331,10 @@ cat docs/MAINTENANCE.md       # 了解项目结构和规则
 - 提交信息使用中文或英文，保持与项目历史一致
 - 涉及本地定制的内容在提交信息中标注 `[local]` 前缀
 
+#### 构建内预检
+
+`build.sh` 将 `make` 拆为 `make package/compile` → `python3 scripts/check_pkg_conflicts.py --build-dir .`（包文件属主冲突预检，APK 语义、失败即停）→ 增量 `make` 收尾。预检扫描编译产物 `build_dir/target-*/*/.pkgdir/<bin>/` 安装树，按 apk origin（`pkginfo/<bin>.control` 的 `Source:`）跨源码包查重，一次列全所有 `trying to overwrite` 类冲突；同源码包子包共享文件属 apk 允许的静默覆盖，不报。
+
 #### 第 4 步：更新文档
 
 - 所有功能变更必须同步更新文档

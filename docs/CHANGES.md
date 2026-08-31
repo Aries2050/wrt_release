@@ -1,6 +1,6 @@
 # 本地定制更改概览
 
-> **最后更新**: 2026-08-30
+> **最后更新**: 2026-08-31
 
 本仓库源自 [ZqinKing/wrt_release](https://github.com/ZqinKing/wrt_release)，在此基础上有以下本地定制。
 
@@ -78,7 +78,9 @@
 | 2026-08-17 | `1a01896` | 新增首次开机脚本 `995_disable_unused_services`：贯彻「服务运行状态与 LuCI 界面一致——界面未启用就不自动运行」原则；uci-defaults 机制开机执行一次，对清单内 `enabled=0` 的服务（cupsd/passwall/mosdns/smartdns/pbr/tailscale/zerotier/microsocks/openlist/vlmcsd + passwall_server 跟随）执行 disable+stop；安全性设计：候选清单与 uci 路径显式硬编码（人工核验的服务级开关）、核心服务白名单防御（network/firewall/dnsmasq 等绝不处理）、enabled 读取失败/无值一律跳过、幂等可重复、单服务失败不中断；`target_fixes.sh` `fix_default_set()` 接入安装（`uci_defaults` 标记 5/5）；已在 GD 实测验证不误伤核心服务与在用服务（adguardhome/easytier/lucky） |
 | 2026-08-17 | `e56b0b3` | 修复 CI 构建失败（ovpn-dco）：ovpn-backports 升级到 `7.1.0.2026080300` 后，源码已在 `tcp.c` 内置 `OVPN_PROTO_RECVMSG_HAS_ADDR_LEN` 修复（`ovpn_tcp_recvmsg` 签名条件化），openwrt/packages 更新时亦同步删除了 `0002-fix-6-18-40-recvmsg-signature.patch`（patches 仅剩 0001）；但 `sync_ovpn_dco_patches()` 仍把 core 旧版 `0002` 同步到 feeds → 应用到新版源码 `Hunk #1 FAILED at 170` 构建失败；已改为按 feeds 实际 `PKG_VERSION` 判断（≥ 7.1.0.2026080300 时跳过 0002），0001（EIP-197）保留同步 |
 | 2026-08-30 | `5157053` | mosdns 仅同步 sbwml/luci-app-mosdns（v5）源，不使用 kenzok8/small-package 合集包（合集为定时拉取镜像、更新迟缓）：上游 2026-08-24 起 `luci-app-mosdns` 将 v2dat 依赖替换为新增的 `geo2txt` 包（`LUCI_DEPENDS` 含 `+geo2txt`），而 custom_feed 稀疏检出仅含 `mosdns luci-app-mosdns` → `geo2txt` 未入 feed，rootfs 组装时 apk 无法解析依赖（`geo2txt (no such package)`）CI 构建失败；补全为 `mosdns luci-app-mosdns geo2txt` 三包（同仓库同源，geo2txt 为 golang 包随编译链自动构建）；small-package 未拉取 mosdns 系列包，无同名冲突 |
-| 2026-08-30 | `当前提交` | 准备上游提交锁定逻辑（**未启用**，默认继续跟随分支）：因 VIKINGYFY/immortalwrt 等编译源近期可能有破坏性改动；此前 `reset_feeds_conf()` 的 `COMMIT_HASH` 机制在浅克隆（`--depth 1`）下无法锁定非 tip 历史提交（对象不在本地、直接 checkout 失败），改为先 `git fetch --depth 1 origin <hash>` 再检出（detached HEAD）；`pre_clone_action.sh` 把锁定提交纳入 `repo_flag`（CI 缓存键），切换锁定提交时缓存自动失效；启用方式=设备 INI 设 `COMMIT_HASH=<完整哈希>`，默认 `none` |
+| 2026-08-30 | `4638427` | 准备上游提交锁定逻辑（**未启用**，默认继续跟随分支）：因 VIKINGYFY/immortalwrt 等编译源近期可能有破坏性改动；此前 `reset_feeds_conf()` 的 `COMMIT_HASH` 机制在浅克隆（`--depth 1`）下无法锁定非 tip 历史提交（对象不在本地、直接 checkout 失败），改为先 `git fetch --depth 1 origin <hash>` 再检出（detached HEAD）；`pre_clone_action.sh` 把锁定提交纳入 `repo_flag`（CI 缓存键），切换锁定提交时缓存自动失效；启用方式=设备 INI 设 `COMMIT_HASH=<完整哈希>`，默认 `none` |
+| 2026-08-31 | `当前提交` | 修复 CI 构建失败（oaf/appfilter ACL 冲突）：kenzok8/small-package 的 open-app-filter（appfilter 7.0.1）二进制包与 luci-app-oaf 界面包都安装 `usr/share/rpcd/acl.d/luci-app-oaf.json`（上游重复注入），APK 严格 ownership 检查下 rootfs 组装报 `trying to overwrite ... owned by appfilter-7.0.1-r1`、`package/install` 失败；按 tailscale 冲突处理模式在 custom_feed 同步后移除 appfilter 侧的安装行与源文件（ACL 归 luci-app-oaf 负责）；同步影响所有使用 compile_base.config（`CONFIG_PACKAGE_luci-app-oaf=y`）的设备 |
+| 2026-08-31 | `当前提交` | 新增构建前包文件属主冲突检测（APK 语义）：网络调研确认无现成工具（openwrt/openwrt#18561、#20802 为同类报错与语义讨论），自行实现 `scripts/check_pkg_conflicts.py`——扫描已编译 `build_dir/target-*/*/.pkgdir/<bin>/` 最终安装树，按 apk origin（Source 源码包，读 `pkginfo/<bin>.control`）语义只报跨源码包冲突（同源静默覆盖不算），一次列全所有冲突、秒级完成；`build.sh` 将 `make` 拆为 `make package/compile` → 预检（失败即停）→ 增量 `make` 收尾，冲突在 rootfs 组装（约 2h+ 后）前被拦截 |
 
 ## 定制清单
 
