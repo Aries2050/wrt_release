@@ -29,6 +29,9 @@ update_feeds() {
 
     append_feed_if_missing "$FEEDS_PATH" "openwrt_bandix" "src-git openwrt_bandix https://github.com/timsaya/openwrt-bandix.git;main"
     append_feed_if_missing "$FEEDS_PATH" "luci_app_bandix" "src-git luci_app_bandix https://github.com/timsaya/luci-app-bandix.git;main"
+    # ⭐ 本地定制：QModem feed（5G/4G Modem 管理，FUjr/QModem，多包分层 feed）
+    # 仅 jdcloud_ipq60xx_immwrt 等设备 deconfig 启用其软件包；详见 docs/qmodem-integration.md
+    append_feed_if_missing "$FEEDS_PATH" "qmodem" "src-git qmodem https://github.com/FUjr/QModem.git;main"
 
     if [ ! -f "$BUILD_DIR/include/bpf.mk" ]; then
         touch "$BUILD_DIR/include/bpf.mk"

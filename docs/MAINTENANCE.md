@@ -65,6 +65,7 @@ wrt_release/
 │   ├── CHANGES.md                    ← 本地定制更改概览
 │   ├── GLIBC_COMPAT.md               ← glibc 兼容层说明
 │   ├── MAINTENANCE.md                ← 本文档
+│   ├── qmodem-integration.md         ← ⭐ QModem 集成说明（feed 接入 + 驱动选型 + ABI）
 │   ├── nn6000-led-config.md          ← ⭐ NN6000 LED 配置分析（含 ImmortalWRT 差异与修复）
 │   ├── nn6000-stock-fingerprint.md   ← ⭐ 原厂固件特征指纹（Web/SSH 快速识别）
 │   └── stock-firmware/               ← ⭐ 从原厂固件提取的参考脚本

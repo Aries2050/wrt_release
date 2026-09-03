@@ -1,6 +1,6 @@
 # 本地定制更改概览
 
-> **最后更新**: 2026-08-31
+> **最后更新**: 2026-09-03
 
 本仓库源自 [ZqinKing/wrt_release](https://github.com/ZqinKing/wrt_release)，在此基础上有以下本地定制。
 
@@ -79,8 +79,9 @@
 | 2026-08-17 | `e56b0b3` | 修复 CI 构建失败（ovpn-dco）：ovpn-backports 升级到 `7.1.0.2026080300` 后，源码已在 `tcp.c` 内置 `OVPN_PROTO_RECVMSG_HAS_ADDR_LEN` 修复（`ovpn_tcp_recvmsg` 签名条件化），openwrt/packages 更新时亦同步删除了 `0002-fix-6-18-40-recvmsg-signature.patch`（patches 仅剩 0001）；但 `sync_ovpn_dco_patches()` 仍把 core 旧版 `0002` 同步到 feeds → 应用到新版源码 `Hunk #1 FAILED at 170` 构建失败；已改为按 feeds 实际 `PKG_VERSION` 判断（≥ 7.1.0.2026080300 时跳过 0002），0001（EIP-197）保留同步 |
 | 2026-08-30 | `5157053` | mosdns 仅同步 sbwml/luci-app-mosdns（v5）源，不使用 kenzok8/small-package 合集包（合集为定时拉取镜像、更新迟缓）：上游 2026-08-24 起 `luci-app-mosdns` 将 v2dat 依赖替换为新增的 `geo2txt` 包（`LUCI_DEPENDS` 含 `+geo2txt`），而 custom_feed 稀疏检出仅含 `mosdns luci-app-mosdns` → `geo2txt` 未入 feed，rootfs 组装时 apk 无法解析依赖（`geo2txt (no such package)`）CI 构建失败；补全为 `mosdns luci-app-mosdns geo2txt` 三包（同仓库同源，geo2txt 为 golang 包随编译链自动构建）；small-package 未拉取 mosdns 系列包，无同名冲突 |
 | 2026-08-30 | `4638427` | 准备上游提交锁定逻辑（**未启用**，默认继续跟随分支）：因 VIKINGYFY/immortalwrt 等编译源近期可能有破坏性改动；此前 `reset_feeds_conf()` 的 `COMMIT_HASH` 机制在浅克隆（`--depth 1`）下无法锁定非 tip 历史提交（对象不在本地、直接 checkout 失败），改为先 `git fetch --depth 1 origin <hash>` 再检出（detached HEAD）；`pre_clone_action.sh` 把锁定提交纳入 `repo_flag`（CI 缓存键），切换锁定提交时缓存自动失效；启用方式=设备 INI 设 `COMMIT_HASH=<完整哈希>`，默认 `none` |
-| 2026-08-31 | `当前提交` | 修复 CI 构建失败（oaf/appfilter ACL 冲突）：kenzok8/small-package 的 open-app-filter（appfilter 7.0.1）二进制包与 luci-app-oaf 界面包都安装 `usr/share/rpcd/acl.d/luci-app-oaf.json`（上游重复注入），APK 严格 ownership 检查下 rootfs 组装报 `trying to overwrite ... owned by appfilter-7.0.1-r1`、`package/install` 失败；按 tailscale 冲突处理模式在 custom_feed 同步后移除 appfilter 侧的安装行与源文件（ACL 归 luci-app-oaf 负责）；同步影响所有使用 compile_base.config（`CONFIG_PACKAGE_luci-app-oaf=y`）的设备 |
-| 2026-08-31 | `当前提交` | 新增包文件属主冲突检测（APK 语义）：网络调研确认无现成工具（openwrt/openwrt#18561、#20802 为同类报错与语义讨论），自行实现 `scripts/check_pkg_conflicts.py`——扫描已编译 `build_dir/target-*/*/.pkgdir/<bin>/` 最终安装树，按 apk origin（Source 源码包，读 `pkginfo/<bin>.control`）跨源码包查重（同源静默覆盖不算），一次列全所有 `trying to overwrite` 类冲突、秒级完成；接入方式：`build.sh` 单体 `make` 失败后自动补跑该扫描输出全量清单（apk 只报第一个即中止）。曾尝试拆 `make package/compile` 提前拦截，但该目标不含 world 的 prepare 阶段（`tools/` 宿主工具、`toolchain/`），冷构建（ccache 未命中）下缺失 `staging_dir/host/bin/sed` 致编译 Error 127（08-31 两机 CI 实证），已回退单体 make |
+| 2026-08-31 | `4184035` | 修复 CI 构建失败（oaf/appfilter ACL 冲突）：kenzok8/small-package 的 open-app-filter（appfilter 7.0.1）二进制包与 luci-app-oaf 界面包都安装 `usr/share/rpcd/acl.d/luci-app-oaf.json`（上游重复注入），APK 严格 ownership 检查下 rootfs 组装报 `trying to overwrite ... owned by appfilter-7.0.1-r1`、`package/install` 失败；按 tailscale 冲突处理模式在 custom_feed 同步后移除 appfilter 侧的安装行与源文件（ACL 归 luci-app-oaf 负责）；同步影响所有使用 compile_base.config（`CONFIG_PACKAGE_luci-app-oaf=y`）的设备 |
+| 2026-08-31 | `70bd081` | 新增包文件属主冲突检测（APK 语义）：网络调研确认无现成工具（openwrt/openwrt#18561、#20802 为同类报错与语义讨论），自行实现 `scripts/check_pkg_conflicts.py`——扫描已编译 `build_dir/target-*/*/.pkgdir/<bin>/` 最终安装树，按 apk origin（Source 源码包，读 `pkginfo/<bin>.control`）跨源码包查重（同源静默覆盖不算），一次列全所有 `trying to overwrite` 类冲突、秒级完成；接入方式：`build.sh` 单体 `make` 失败后自动补跑该扫描输出全量清单（apk 只报第一个即中止）。曾尝试拆 `make package/compile` 提前拦截，但该目标不含 world 的 prepare 阶段（`tools/` 宿主工具、`toolchain/`），冷构建（ccache 未命中）下缺失 `staging_dir/host/bin/sed` 致编译 Error 127（08-31 两机 CI 实证），已回退单体 make |
+| 2026-09-03 | `当前提交` | 新增 QModem（5G/4G Modem 管理）集成：`feeds.sh` 添加 `src-git qmodem`（FUjr/QModem，多包分层 feed）；亚瑟 `jdcloud_ipq60xx_immwrt.config` 启用 `qmodem` + `luci-app-qmodem-next`（新版 JS UI，自带短信）+ `sms-forwarder-next` + `qmodem-seal` + `quectel-CM-5G-M`，补充通用 USB modem 内核模块（`kmod-usb-net-cdc-mbim` / `kmod-usb-net-qmi-wwan` / `kmod-usb-serial-option`）；驱动选型 = 通用 QMI 编入固件、厂商驱动（`kmod-qmi_wwan_q/s/f`、`kmod-pcie_mhi`）仅编译产出 APK 不内置（经 `firmware/packages/` 本地源按需安装）；详见 [qmodem-integration.md](./qmodem-integration.md) |
 
 ## 定制清单
 
@@ -144,6 +145,7 @@
 | `kmod-rtw88-8822bu` / `rtl8822be-firmware` | `4ff9c9d` | RTL8812BU/RTL8822BU USB 无线网卡主线驱动（`rtw88` 8822B spec，认领 `0bda:b812`）；与 8812au 并存 |
 | `adguardhome` + `luci-app-adguardhome` | `b7adf44` | AdGuardHome 切换 kenzok8/small-package 源，16 机型二进制核心编入固件；详见 [adguardhome-source-switch.md](./adguardhome-source-switch.md) |
 | `luci-app-adguardhome`（界面） | `929e0bf` | LuCI 界面改用自有仓库 Aries2050/luci-app-adguardhome（单包仓库整仓同步，JS 前端，接管小写 `init.d/adguardhome`，含 rpcd 插件 `luci.adguardhome` 与 `adguardhome` 脚本）；二进制核心 `adguardhome` 仍为 kenzok8/small-package；16 机型清理悬空 `luci-app-adguardhome_INCLUDE_binary`；详见 [adguardhome-source-switch.md](./adguardhome-source-switch.md) |
+| `qmodem` + `luci-app-qmodem-next`（QModem 套件） | `当前提交` | 5G/4G Modem 管理（FUjr/QModem feed，`feeds.sh` 添加 `src-git qmodem`）；亚瑟 `jdcloud_ipq60xx_immwrt.config` 启用核心 + 新版 JS UI（自带短信）+ `sms-forwarder-next` + `qmodem-seal` + `quectel-CM-5G-M`；通用 USB modem 内核模块（cdc-mbim/qmi-wwan/serial-option）编入固件；厂商驱动 `kmod-qmi_wwan_q/s/f` / `kmod-pcie_mhi` 仅编译不内置；详见 [qmodem-integration.md](./qmodem-integration.md) |
 
 ### 6. 定制分支信息行
 
