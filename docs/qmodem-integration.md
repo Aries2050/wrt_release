@@ -1,6 +1,6 @@
 # QModem 集成说明
 
-> **最后更新**: 2026-09-03
+> **最后更新**: 2026-09-04
 
 本文档记录将 [FUjr/QModem](https://github.com/FUjr/QModem)（5G/4G Modem 管理）集成进本仓库编译配置的方法与决策。
 
@@ -43,7 +43,7 @@ qmodem 主包的驱动依赖由 **旧版 luci-app-qmodem 的 config 选项**（`
 
 | 选项 | 默认 | 本配置 | 效果 |
 |------|------|--------|------|
-| `INCLUDE_vendor-qmi-wwan` | ✅（choice 默认） | `=n` | 厂商 QMI 驱动**不**作为 qmodem 强依赖（否则会被强制编入 rootfs） |
+| `INCLUDE_vendor-qmi-wwan` | ✅（choice 默认） | `=n` | 不把厂商 QMI 驱动作为 qmodem 强依赖；Quectel `kmod-qmi_wwan_q` 单独 `=y` 内置、Simcom/Fibocom `=m` 仅编译（见下） |
 | `INCLUDE_generic-qmi-wwan` | ❌ | `=y` | 通用 QMI 驱动 `kmod-usb-net-qmi-wwan` 编入固件 |
 | `INCLUDE_nss-qmi-wwan` | ❌ | `=n` | NSS 版驱动（仅 ipq807x/ipq50xx，ipq60xx 无关） |
 | `INCLUDE_ADD_PCI_SUPPORT` | `=n` | `=n` | 关闭 PCIe/MHI 选项联动（避免 `kmod-pcie_mhi` 被强制编入） |
@@ -63,20 +63,30 @@ CONFIG_PACKAGE_kmod-usb-serial-option=y
 
 （其余 `kmod-usb2/usb3/serial/net/acm/wdm/cdc-ether/rndis/cdc-ncm/huawei-cdc-ncm` 等由 qmodem 依赖自动拉入。）
 
-### 厂商驱动：仅编译、不内置
+### 厂商驱动：Quectel 内置，其余仅编译
 
-厂商定制内核驱动以 `=m` 配置——**编译产出 APK，但不装进固件 rootfs**：
+厂商定制内核驱动：
+- **`kmod-qmi_wwan_q`（Quectel USB QMI）`=y` 内置**——QModem 主推 Quectel 模块，编入固件即可直接使用；
+- **`kmod-qmi_wwan_s`（Simcom）/ `kmod-qmi_wwan_f`（Fibocom）/ `kmod-pcie_mhi`（MHI PCIe）`=m` 仅编译**——产出 APK 不内置，需要时经 `firmware/packages/` 本地源 `apk add`。
 
 ```
-CONFIG_PACKAGE_kmod-qmi_wwan_q=m   # Quectel USB QMI（driver/quectel_QMI_WWAN）
-CONFIG_PACKAGE_kmod-qmi_wwan_s=m   # Simcom USB QMI（driver/simcom_QMI_WWAN）
-CONFIG_PACKAGE_kmod-qmi_wwan_f=m   # Fibocom USB QMI（driver/fibocom_QMI_WWAN）
-CONFIG_PACKAGE_kmod-pcie_mhi=m     # Quectel MHI PCIe（driver/quectel_MHI）
+CONFIG_PACKAGE_kmod-qmi_wwan_q=y   # Quectel USB QMI（driver/quectel_QMI_WWAN），内置
+CONFIG_PACKAGE_kmod-qmi_wwan_s=m   # Simcom USB QMI（driver/simcom_QMI_WWAN），仅编译
+CONFIG_PACKAGE_kmod-qmi_wwan_f=m   # Fibocom USB QMI（driver/fibocom_QMI_WWAN），仅编译
+CONFIG_PACKAGE_kmod-pcie_mhi=m     # Quectel MHI PCIe（driver/quectel_MHI），仅编译
 ```
 
-- `[m]` 包在编译期被 `make` 构建，产出 IPK/APK 由 `build.sh` 复制到 `firmware/packages/`（本地软件源索引），需要时按需 `apk add kmod-qmi_wwan_q` 等。
-- **与预编译包的根本区别**：这些 kmod 与固件同一次编译，内核 ABI 天然一致，不会出现 lspkg 源中不可解析/不匹配问题。
-- 出厂默认不含厂商驱动（用户模块若走通用 QMI/AT 即可直接工作）；如需厂商专属功能再装。
+> ⚠️ **ECM RAWIP 联动（2026-09-04 CI 修复）**：上游 qca-nss-ecm 以
+> `CONFIG_PACKAGE_kmod-qmi_wwan_q` 为 RAWIP 前端开关（`ifneq` 对 `=y`/`=m` **都成立**），
+> 只要该符号非空就启用 `ECM_INTERFACE_RAWIP_ENABLE=y`，modpost 需要 NSS rmnet 的
+> `nss_rmnet_rx_get_ifnum`。因此 `fragments/nss.config` 必须配套启用
+> `CONFIG_NSS_DRV_RMNET_ENABLE=y`（qca-nss-drv 的 RMNET 属 `NSS_DRV_CONFIG_ONLY_FEATURES`，
+> 未定义时强制 `=n`、不导出符号）；已加入。曾因只设 `kmod-qmi_wwan_q=m`、未开 rmnet 导致 CI 失败：
+> `ERROR: modpost: "nss_rmnet_rx_get_ifnum" [ecm.ko] undefined!`。
+> `kmod-qmi_wwan_s/f`、`kmod-pcie_mhi` 无类似联动，保持 `=m` 安全。
+
+- `[m]` 包在编译期被 `make` 构建，产出 IPK/APK 由 `build.sh` 复制到 `firmware/packages/`（本地软件源索引），需要时按需 `apk add`。
+- **与预编译包的根本区别**：这些 kmod 与固件同一次编译，内核 ABI 天然一致，不会出现源中不可解析/不匹配问题。
 
 ## 依赖说明
 
@@ -87,8 +97,10 @@ CONFIG_PACKAGE_kmod-pcie_mhi=m     # Quectel MHI PCIe（driver/quectel_MHI）
 
 - 语法：`bash -n wrt_core/modules/feeds.sh`
 - 全量构建入口：`./build.sh jdcloud_ipq60xx_immwrt`
-- 构建完成后厂商驱动 APK 应在 `firmware/packages/` 下（`kmod-qmi_wwan_q*` 等）。
-- 刷机后在 `/tmp/1` 上验证的参考命令：`ubus list | grep -E 'qmodem|at-daemon'`、`ls /sys/class/net/`（新增 `wwan0`/`usb0` 等）。
+- 构建完成后厂商驱动 APK 应在 `firmware/packages/` 下（`kmod-qmi_wwan_s*` 等；`kmod-qmi_wwan_q` 已内置）。
+- 刷机后验证：`lsmod | grep -E 'qmi_wwan_q|ecm'`（内置驱动可加载）、`ubus list | grep -E 'qmodem|at-daemon'`。
+- 2026-09-04 附带修复：`build.sh` 失败后自动补跑冲突检测的路径 bug——原 `$BASE_PATH/scripts`
+  指向不存在的 `wrt_core/scripts/`，已改为 `$REPO_ROOT/scripts`（仓库根 `scripts/check_pkg_conflicts.py`）。
 
 ## 许可证
 

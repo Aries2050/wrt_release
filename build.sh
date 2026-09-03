@@ -473,7 +473,7 @@ make download -j$(($(nproc) * 2))
 # 故恢复单体 make 保证宿主工具按序构建；冲突检测以独立脚本 + 失败诊断形式接入。
 if ! make -j$(($(nproc) + 1)); then
     make -j1 V=s || true
-    python3 "$BASE_PATH/scripts/check_pkg_conflicts.py" --build-dir . || true
+    python3 "$REPO_ROOT/scripts/check_pkg_conflicts.py" --build-dir . || true
     exit 1
 fi
 
