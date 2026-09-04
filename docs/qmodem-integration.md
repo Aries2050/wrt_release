@@ -76,13 +76,16 @@ CONFIG_PACKAGE_kmod-qmi_wwan_f=m   # Fibocom USB QMI（driver/fibocom_QMI_WWAN�
 CONFIG_PACKAGE_kmod-pcie_mhi=m     # Quectel MHI PCIe（driver/quectel_MHI），仅编译
 ```
 
-> ⚠️ **ECM RAWIP 联动（2026-09-04 CI 修复）**：上游 qca-nss-ecm 以
+> ⚠️ **ECM RAWIP 联动（ipq60xx 无 rmnet 提供者，构建期禁用）**：上游 qca-nss-ecm 以
 > `CONFIG_PACKAGE_kmod-qmi_wwan_q` 为 RAWIP 前端开关（`ifneq` 对 `=y`/`=m` **都成立**），
 > 只要该符号非空就启用 `ECM_INTERFACE_RAWIP_ENABLE=y`，modpost 需要 NSS rmnet 的
-> `nss_rmnet_rx_get_ifnum`。因此 `fragments/nss.config` 必须配套启用
-> `CONFIG_NSS_DRV_RMNET_ENABLE=y`（qca-nss-drv 的 RMNET 属 `NSS_DRV_CONFIG_ONLY_FEATURES`，
-> 未定义时强制 `=n`、不导出符号）；已加入。曾因只设 `kmod-qmi_wwan_q=m`、未开 rmnet 导致 CI 失败：
-> `ERROR: modpost: "nss_rmnet_rx_get_ifnum" [ecm.ko] undefined!`。
+> `nss_rmnet_rx_get_ifnum`。而提供该符号的 NSS rmnet 驱动（QModem `driver/nss/rmnet-nss`）
+> 约束为 `@(TARGET_qualcommax_ipq807x||ipq50xx)`——**ipq60xx 无 rmnet 提供者**，
+> `CONFIG_NSS_DRV_RMNET_ENABLE=y` 也无法导出该符号（曾两度因此 CI 失败：
+> `ERROR: modpost: "nss_rmnet_rx_get_ifnum" [ecm.ko] undefined!`）。
+> **最终方案**：构建期 `disable_qca_nss_ecm_rawip()`（`package_source_updates.sh`，
+> `update.sh` stage_pre_install_source_fixes 注册）删除 `qca-nss-ecm/Makefile` 中
+> `kmod-qmi_wwan_q`→RAWIP 联动整块；`kmod-qmi_wwan_q` 仍 `=y` 内置（走标准 QMI/AT），
 > `kmod-qmi_wwan_s/f`、`kmod-pcie_mhi` 无类似联动，保持 `=m` 安全。
 
 - `[m]` 包在编译期被 `make` 构建，产出 IPK/APK 由 `build.sh` 复制到 `firmware/packages/`（本地软件源索引），需要时按需 `apk add`。

@@ -367,3 +367,30 @@ update_package() {
         echo "更新软件包 $1 到 $PKG_VER $PKG_HASH"
     fi
 }
+
+
+# ⭐ 本地定制：禁用 qca-nss-ecm 的 RAWIP 前端联动（ipq60xx 无 NSS rmnet 提供者）。
+# 上游 qca-nss-ecm 以 `CONFIG_PACKAGE_kmod-qmi_wwan_q` 非空（=y/=m）为开关启用
+# ECM_INTERFACE_RAWIP_ENABLE=y，modpost 需要 NSS rmnet 的 nss_rmnet_rx_get_ifnum；
+# 提供该符号的 rmnet-nss（QModem driver/nss）仅支持 TARGET_qualcommax_ipq807x||ipq50xx，
+# ipq60xx 无线程式提供者 → ECM 编译必败（ERROR: modpost: "nss_rmnet_rx_get_ifnum" [ecm.ko] undefined）。
+# Quectel QMI 驱动（kmod-qmi_wwan_q）仍可 =y 内置，走标准 QMI/AT 路径，不受影响。
+disable_qca_nss_ecm_rawip() {
+    local ecm_makefile="$BUILD_DIR/package/qca-nss/qca-nss-ecm/Makefile"
+
+    if [ ! -f "$ecm_makefile" ]; then
+        echo "qca-nss-ecm Makefile 不存在（$ecm_makefile），跳过 RAWIP 禁用。"
+        return 0
+    fi
+    if ! grep -q 'ECM_INTERFACE_RAWIP_ENABLE' "$ecm_makefile"; then
+        echo "qca-nss-ecm 已无 RAWIP 联动（幂等跳过）。"
+        return 0
+    fi
+    # 删除 ifneq(…kmod-qmi_wwan_q…) + ECM_MAKE_OPTS …RAWIP… + endif 整个块
+    sed -i '/^ifneq (\$(CONFIG_PACKAGE_kmod-qmi_wwan_q),)$/,/^endif$/d' "$ecm_makefile"
+    if grep -q 'ECM_INTERFACE_RAWIP_ENABLE' "$ecm_makefile"; then
+        echo "错误：qca-nss-ecm RAWIP 联动块删除失败" >&2
+        return 1
+    fi
+    echo "已禁用 qca-nss-ecm 的 RAWIP 前端联动（ipq60xx 无 rmnet 提供者）。"
+}

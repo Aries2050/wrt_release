@@ -141,6 +141,10 @@ stage_pre_install_source_fixes() {
     fix_easytier_mk
     remove_attendedsysupgrade
     fix_kconfig_recursive_dependency
+    # ⭐ 本地定制：2026-09-04 ipq60xx 无 NSS rmnet 提供者（QModem rmnet-nss 仅
+    # ipq807x/ipq50xx），禁用 qca-nss-ecm 的 RAWIP 联动避免 modpost undefined；
+    # kmod-qmi_wwan_q 仍可 =y 内置（走标准 QMI/AT）。
+    disable_qca_nss_ecm_rawip
     if [[ $GLIBC_COMPAT == "true" ]]; then
         install_glibc_run_wrapper
         install_glibc_init_script
